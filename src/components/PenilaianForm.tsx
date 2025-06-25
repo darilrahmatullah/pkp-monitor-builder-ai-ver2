@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Save, TrendingUp, ChevronLeft, ChevronRight, FileText, Target } from 'lucide-react';
+import { Save, TrendingUp, ChevronLeft, ChevronRight, FileText, Target, Calendar, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ScoringIndikator {
@@ -36,6 +36,7 @@ interface TargetAchievementIndikator {
     target_percentage: number;
     total_sasaran: number;
     satuan: string;
+    periodicity: 'annual' | 'monthly';
   };
 }
 
@@ -93,104 +94,112 @@ const PenilaianForm = () => {
         10: ">4 pos bindu aktif"
       }
     },
-    // Klaster 2: Target Achievement System
+    // Klaster 2: Target Achievement System (Annual)
     {
       id: 3,
       klaster: "Klaster 2: Kesehatan Lingkungan",
       nama: "Cakupan Inspeksi Sanitasi TPM",
-      definisi: "Persentase tempat pengelolaan makanan yang diinspeksi sanitasinya",
+      definisi: "Persentase tempat pengelolaan makanan yang diinspeksi sanitasinya (Target Tahunan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 90,
         total_sasaran: 150,
-        satuan: "TPM"
+        satuan: "TPM",
+        periodicity: 'annual'
       }
     },
     {
       id: 4,
       klaster: "Klaster 2: Kesehatan Lingkungan",
       nama: "Pembinaan TUPM",
-      definisi: "Jumlah tempat umum dan pengelolaan makanan yang dibina",
+      definisi: "Jumlah tempat umum dan pengelolaan makanan yang dibina per bulan (Target Bulanan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 85,
-        total_sasaran: 200,
-        satuan: "tempat"
+        total_sasaran: 50,
+        satuan: "tempat",
+        periodicity: 'monthly'
       }
     },
-    // Klaster 3: Target Achievement System
+    // Klaster 3: Target Achievement System (Annual)
     {
       id: 5,
       klaster: "Klaster 3: Kesehatan Ibu & Anak",
       nama: "Cakupan K4",
-      definisi: "Persentase ibu hamil yang mendapat pelayanan antenatal sesuai standar",
+      definisi: "Persentase ibu hamil yang mendapat pelayanan antenatal sesuai standar (Target Tahunan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 95,
         total_sasaran: 500,
-        satuan: "ibu hamil"
+        satuan: "ibu hamil",
+        periodicity: 'annual'
       }
     },
     {
       id: 6,
       klaster: "Klaster 3: Kesehatan Ibu & Anak",
-      nama: "Cakupan Imunisasi Dasar Lengkap",
-      definisi: "Persentase bayi yang mendapat imunisasi dasar lengkap",
+      nama: "Kunjungan Neonatal",
+      definisi: "Jumlah kunjungan neonatal per bulan (Target Bulanan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 95,
-        total_sasaran: 450,
-        satuan: "bayi"
+        total_sasaran: 40,
+        satuan: "kunjungan",
+        periodicity: 'monthly'
       }
     },
-    // Klaster 4: Target Achievement System
+    // Klaster 4: Target Achievement System (Mixed)
     {
       id: 7,
       klaster: "Klaster 4: Gizi Masyarakat",
       nama: "Cakupan Balita Ditimbang",
-      definisi: "Persentase balita yang ditimbang di posyandu",
+      definisi: "Persentase balita yang ditimbang di posyandu (Target Tahunan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 85,
         total_sasaran: 800,
-        satuan: "balita"
+        satuan: "balita",
+        periodicity: 'annual'
       }
     },
     {
       id: 8,
       klaster: "Klaster 4: Gizi Masyarakat",
-      nama: "Pemberian Tablet Tambah Darah",
-      definisi: "Cakupan pemberian tablet tambah darah pada remaja putri",
+      nama: "Distribusi PMT Balita",
+      definisi: "Distribusi PMT untuk balita gizi kurang per bulan (Target Bulanan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 90,
-        total_sasaran: 300,
-        satuan: "remaja putri"
+        total_sasaran: 25,
+        satuan: "balita",
+        periodicity: 'monthly'
       }
     },
-    // Klaster 5: Target Achievement System
+    // Klaster 5: Target Achievement System (Mixed)
     {
       id: 9,
       klaster: "Klaster 5: Pencegahan Penyakit",
       nama: "Cakupan Penemuan TB",
-      definisi: "Persentase penemuan kasus TB dari target yang ditetapkan",
+      definisi: "Persentase penemuan kasus TB dari target yang ditetapkan (Target Tahunan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 70,
         total_sasaran: 100,
-        satuan: "kasus"
+        satuan: "kasus",
+        periodicity: 'annual'
       }
     },
     {
       id: 10,
       klaster: "Klaster 5: Pencegahan Penyakit",
-      nama: "Cakupan Pemeriksaan IVA",
-      definisi: "Persentase wanita usia subur yang diperiksa IVA",
+      nama: "Pemeriksaan Kontak TB",
+      definisi: "Jumlah pemeriksaan kontak TB per bulan (Target Bulanan)",
       type: 'target_achievement',
       target_info: {
         target_percentage: 80,
-        total_sasaran: 250,
-        satuan: "WUS"
+        total_sasaran: 15,
+        satuan: "pemeriksaan",
+        periodicity: 'monthly'
       }
     }
   ];
@@ -226,12 +235,8 @@ const PenilaianForm = () => {
     }));
   };
 
-  const handleTargetAchievementChange = (indikatorId: number, actualValue: number) => {
-    const indikator = mockIndikators.find(ind => ind.id === indikatorId) as TargetAchievementIndikator;
-    if (!indikator || indikator.type !== 'target_achievement') return;
-
-    const targetSasaran = (indikator.target_info.target_percentage / 100) * indikator.target_info.total_sasaran;
-    const calculatedPercentage = Math.min(100, Math.max(0, (actualValue / targetSasaran) * 100));
+  const handleTargetAchievementChange = (indikatorId: number, actualValue: number, periodTargetSasaran: number) => {
+    const calculatedPercentage = Math.min(100, Math.max(0, (actualValue / periodTargetSasaran) * 100));
 
     setSelectedValues(prev => ({
       ...prev,
@@ -325,17 +330,52 @@ const PenilaianForm = () => {
   );
 
   const renderTargetAchievementInput = (indikator: TargetAchievementIndikator) => {
-    const targetSasaran = Math.round((indikator.target_info.target_percentage / 100) * indikator.target_info.total_sasaran);
+    const { target_percentage, total_sasaran, satuan, periodicity } = indikator.target_info;
+    
+    // Calculate period target based on periodicity
+    let periodTargetSasaran: number;
+    let periodLabel: string;
+    let periodDescription: string;
+    
+    if (periodicity === 'annual') {
+      // For annual targets: divide by 4 quarters
+      periodTargetSasaran = Math.round((target_percentage / 100) * total_sasaran / 4);
+      periodLabel = "Target Triwulan";
+      periodDescription = `${target_percentage}% dari ${total_sasaran} ${satuan} tahunan ÷ 4 triwulan`;
+    } else {
+      // For monthly targets: multiply by 3 months per quarter
+      periodTargetSasaran = Math.round((target_percentage / 100) * total_sasaran * 3);
+      periodLabel = "Target Triwulan";
+      periodDescription = `${target_percentage}% dari ${total_sasaran} ${satuan} bulanan × 3 bulan`;
+    }
+    
     const currentValue = selectedValues[indikator.id];
     
     return (
       <div className="space-y-4">
+        {/* Periodicity Indicator */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center space-x-2">
+            {periodicity === 'annual' ? (
+              <Calendar className="w-4 h-4 text-blue-500" />
+            ) : (
+              <Clock className="w-4 h-4 text-green-500" />
+            )}
+            <span className="text-sm font-medium text-gray-700">
+              {periodicity === 'annual' ? 'Target Tahunan (Akumulatif)' : 'Target Bulanan (Per Bulan)'}
+            </span>
+          </div>
+          <Badge variant="outline" className={periodicity === 'annual' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}>
+            {periodicity === 'annual' ? 'Tahunan' : 'Bulanan'}
+          </Badge>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{targetSasaran}</div>
-            <div className="text-sm text-gray-600">Target Sasaran ({indikator.target_info.satuan})</div>
+            <div className="text-2xl font-bold text-blue-600">{periodTargetSasaran}</div>
+            <div className="text-sm text-gray-600">{periodLabel} ({satuan})</div>
             <div className="text-xs text-gray-500 mt-1">
-              {indikator.target_info.target_percentage}% dari {indikator.target_info.total_sasaran} {indikator.target_info.satuan}
+              {periodDescription}
             </div>
           </div>
           <div className="text-center">
@@ -344,29 +384,32 @@ const PenilaianForm = () => {
             </div>
             <div className="text-sm text-gray-600">Capaian Saat Ini</div>
             <div className="text-xs text-gray-500 mt-1">
-              {currentValue?.actual_achievement || 0} dari {targetSasaran} target
+              {currentValue?.actual_achievement || 0} dari {periodTargetSasaran} target
             </div>
           </div>
         </div>
         
         <div className="space-y-2">
           <Label htmlFor={`achievement-${indikator.id}`} className="text-sm font-medium">
-            Capaian Aktual ({indikator.target_info.satuan})
+            Capaian Aktual Triwulan Ini ({satuan})
           </Label>
           <Input
             id={`achievement-${indikator.id}`}
             type="number"
             min="0"
-            placeholder={`Masukkan jumlah ${indikator.target_info.satuan} yang tercapai...`}
+            placeholder={`Masukkan jumlah ${satuan} yang tercapai...`}
             value={currentValue?.actual_achievement || ''}
             onChange={(e) => {
               const value = parseInt(e.target.value) || 0;
-              handleTargetAchievementChange(indikator.id, value);
+              handleTargetAchievementChange(indikator.id, value, periodTargetSasaran);
             }}
             className="text-center text-lg font-semibold"
           />
           <div className="text-xs text-gray-500 text-center">
-            Masukkan angka capaian aktual untuk indikator ini
+            {periodicity === 'annual' 
+              ? 'Masukkan capaian akumulatif untuk triwulan ini'
+              : 'Masukkan total capaian untuk 3 bulan dalam triwulan ini'
+            }
           </div>
         </div>
 
@@ -379,6 +422,16 @@ const PenilaianForm = () => {
             <Progress value={currentValue.calculated_percentage} className="h-3" />
           </div>
         )}
+
+        {/* Additional Info Box */}
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="text-xs text-yellow-800">
+            <strong>Catatan:</strong> {periodicity === 'annual' 
+              ? 'Target ini bersifat akumulatif sepanjang tahun. Capaian triwulan akan dijumlahkan untuk mencapai target tahunan.'
+              : 'Target ini dihitung per bulan. Capaian triwulan adalah total dari 3 bulan dalam periode tersebut.'
+            }
+          </div>
+        </div>
       </div>
     );
   };
@@ -430,7 +483,14 @@ const PenilaianForm = () => {
                     {currentIndikator.id}. {currentIndikator.nama}
                   </CardTitle>
                   {currentIndikator.type === 'target_achievement' && (
-                    <Target className="w-5 h-5 text-green-600" />
+                    <div className="flex items-center space-x-1">
+                      <Target className="w-5 h-5 text-green-600" />
+                      {(currentIndikator as TargetAchievementIndikator).target_info.periodicity === 'annual' ? (
+                        <Calendar className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-green-500" />
+                      )}
+                    </div>
                   )}
                 </div>
                 <p className="text-sm text-gray-600 leading-relaxed">
@@ -717,7 +777,14 @@ const PenilaianForm = () => {
                     <div className="flex items-center space-x-1">
                       <span className="truncate">{indikator.id}. {indikator.nama}</span>
                       {indikator.type === 'target_achievement' && (
-                        <Target className="w-3 h-3 text-green-600 flex-shrink-0" />
+                        <div className="flex items-center space-x-1 flex-shrink-0">
+                          <Target className="w-3 h-3 text-green-600" />
+                          {(indikator as TargetAchievementIndikator).target_info.periodicity === 'annual' ? (
+                            <Calendar className="w-3 h-3 text-blue-500" />
+                          ) : (
+                            <Clock className="w-3 h-3 text-green-500" />
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="text-xs text-gray-500 truncate">{indikator.klaster}</div>
