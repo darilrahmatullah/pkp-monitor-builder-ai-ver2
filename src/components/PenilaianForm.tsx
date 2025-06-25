@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Save, BarChart3, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Save, TrendingUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const PenilaianForm = () => {
@@ -103,10 +103,6 @@ const PenilaianForm = () => {
     }));
   };
 
-  const calculateTotalScore = (): number => {
-    return Object.values(selectedValues).reduce((sum: number, val: number) => sum + val, 0);
-  };
-
   const calculateProgress = (): number => {
     return (Object.keys(selectedValues).length / mockIndikators.length) * 100;
   };
@@ -142,7 +138,7 @@ const PenilaianForm = () => {
 
     toast({
       title: "Data berhasil disimpan",
-      description: `Total skor: ${calculateTotalScore()} | Evaluasi ${tribunanLabels[currentTribulan].label} tersimpan`,
+      description: `Penilaian dan evaluasi ${tribunanLabels[currentTribulan].label} tersimpan`,
     });
   };
 
@@ -197,9 +193,8 @@ const PenilaianForm = () => {
               </div>
               <div className="flex flex-col items-end space-y-2">
                 <div className="text-right">
-                  <p className="text-xs text-gray-500">Ringkasan Nilai</p>
-                  <p className="text-sm font-semibold">{currentIndikator.nama}</p>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  <p className="text-xs text-gray-500">Nilai Saat Ini</p>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 text-lg px-3 py-1">
                     {selectedValues[currentIndikator.id] || 0}
                   </Badge>
                 </div>
@@ -450,26 +445,19 @@ const PenilaianForm = () => {
         </div>
       </div>
 
-      {/* Sticky Sidebar */}
+      {/* Simplified Sidebar - Removed score recap */}
       <div className="space-y-6">
         <Card className="sticky top-6 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-gray-800 flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-              Rekap Skor
+              <FileText className="w-5 h-5 mr-2 text-blue-600" />
+              Progress Pengisian
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-              <div className="text-3xl font-bold text-gray-800">{calculateTotalScore()}</div>
-              <p className="text-sm text-gray-600">Total Skor</p>
-            </div>
-            
-            <Separator />
-            
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span>Progress Pengisian</span>
+                <span>Progress Indikator</span>
                 <span className="font-medium">{Math.round(calculateProgress())}%</span>
               </div>
               <Progress value={calculateProgress()} className="h-2" />

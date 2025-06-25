@@ -6,10 +6,11 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
+import RekapSkor from '@/components/RekapSkor';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
-import { BarChart3, FileText, CheckCircle, Users, Settings, Shield } from 'lucide-react';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award } from 'lucide-react';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -68,9 +69,9 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {userRole === 'puskesmas' ? (
-          // User Interface (Puskesmas) - Now only 2 tabs
+          // User Interface (Puskesmas) - Now 3 tabs with separate Rekap Skor
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:w-fit lg:grid-cols-2 bg-white shadow-sm border border-gray-200">
+            <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-3 bg-white shadow-sm border border-gray-200">
               <TabsTrigger value="dashboard" className="flex items-center space-x-2">
                 <BarChart3 className="w-4 h-4" />
                 <span>Dashboard</span>
@@ -78,6 +79,10 @@ const Index = () => {
               <TabsTrigger value="penilaian" className="flex items-center space-x-2">
                 <FileText className="w-4 h-4" />
                 <span>Penilaian & Evaluasi</span>
+              </TabsTrigger>
+              <TabsTrigger value="rekap" className="flex items-center space-x-2">
+                <Award className="w-4 h-4" />
+                <span>Rekap Skor</span>
               </TabsTrigger>
             </TabsList>
 
@@ -87,6 +92,10 @@ const Index = () => {
 
             <TabsContent value="penilaian" className="space-y-6">
               <PenilaianForm />
+            </TabsContent>
+
+            <TabsContent value="rekap" className="space-y-6">
+              <RekapSkor />
             </TabsContent>
           </Tabs>
         ) : (
