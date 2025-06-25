@@ -11,7 +11,7 @@ import { Save, BarChart3, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const PenilaianForm = () => {
-  const [selectedValues, setSelectedValues] = useState({});
+  const [selectedValues, setSelectedValues] = useState<Record<number, number>>({});
   
   const mockIndikators = [
     {
@@ -52,7 +52,7 @@ const PenilaianForm = () => {
     }
   ];
 
-  const handleValueChange = (indikatorId, value) => {
+  const handleValueChange = (indikatorId: number, value: string) => {
     setSelectedValues(prev => ({
       ...prev,
       [indikatorId]: parseInt(value)
@@ -60,7 +60,7 @@ const PenilaianForm = () => {
   };
 
   const calculateTotalScore = () => {
-    return Object.values(selectedValues).reduce((sum, val) => sum + val, 0);
+    return Object.values(selectedValues).reduce((sum: number, val: number) => sum + val, 0);
   };
 
   const calculateProgress = () => {
@@ -175,7 +175,7 @@ const PenilaianForm = () => {
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-gray-700">Distribusi Skor:</h4>
               {[10, 7, 4, 0].map(score => {
-                const count = Object.values(selectedValues).filter(val => val === score).length;
+                const count = Object.values(selectedValues).filter((val: number) => val === score).length;
                 return (
                   <div key={score} className="flex justify-between text-xs">
                     <span className="flex items-center">
