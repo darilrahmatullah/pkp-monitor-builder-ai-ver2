@@ -3,16 +3,24 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
 import EvaluasiForm from '@/components/EvaluasiForm';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
-import { BarChart3, FileText, CheckCircle, Users } from 'lucide-react';
+import AdminDashboard from '@/components/AdminDashboard';
+import BundleBuilder from '@/components/BundleBuilder';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield } from 'lucide-react';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [userRole] = useState('puskesmas'); // Could be 'puskesmas' or 'dinkes'
+  const [userRole, setUserRole] = useState<'puskesmas' | 'dinkes'>('puskesmas');
+
+  const handleRoleToggle = (checked: boolean) => {
+    setUserRole(checked ? 'dinkes' : 'puskesmas');
+    setActiveTab('dashboard');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
@@ -30,11 +38,29 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Role Toggle */}
+              <div className="flex items-center space-x-3 bg-gray-50 p-2 rounded-lg">
+                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
+                  Puskesmas
+                </Label>
+                <Switch
+                  id="role-toggle"
+                  checked={userRole === 'dinkes'}
+                  onCheckedChange={handleRoleToggle}
+                />
+                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
+                  Dinkes (Admin)
+                </Label>
+              </div>
+              
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 Tahun 2024
               </Badge>
-              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                {userRole === 'puskesmas' ? 'Puskesmas' : 'Dinkes'}
+              <Badge variant="secondary" className={`${
+                userRole === 'dinkes' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+              }`}>
+                {userRole === 'puskesmas' ? 'Puskesmas' : 'Dinkes (Admin)'}
+                {userRole === 'dinkes' && <Shield className="w-3 h-3 ml-1" />}
               </Badge>
             </div>
           </div>
@@ -43,46 +69,82 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:grid-cols-4 bg-white shadow-sm border border-gray-200">
-            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="penilaian" className="flex items-center space-x-2">
-              <FileText className="w-4 h-4" />
-              <span>Penilaian</span>
-            </TabsTrigger>
-            <TabsTrigger value="evaluasi" className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4" />
-              <span>Evaluasi</span>
-            </TabsTrigger>
-            {userRole === 'dinkes' && (
+        {userRole === 'puskesmas' ? (
+          // User Interface (Puskesmas)
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-3 bg-white shadow-sm border border-gray-200">
+              <TabsTrigger value="dashboard" className="flex items-center space-x-2">
+                <BarChart3 className="w-4 h-4" />
+                <span>Dashboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="penilaian" className="flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span>Penilaian</span>
+              </TabsTrigger>
+              <TabsTrigger value="evaluasi" className="flex items-center space-x-2">
+                <CheckCircle className="w-4 h-4" />
+                <span>Evaluasi</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="dashboard" className="space-y-6">
+              <Dashboard />
+            </TabsContent>
+
+            <TabsContent value="penilaian" className="space-y-6">
+              <PenilaianForm />
+            </TabsContent>
+
+            <TabsContent value="evaluasi" className="space-y-6">
+              <EvaluasiForm />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          // Admin Interface (Dinkes)
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:grid-cols-4 bg-white shadow-sm border border-gray-200">
+              <TabsTrigger value="dashboard" className="flex items-center space-x-2">
+                <BarChart3 className="w-4 h-4" />
+                <span>Dashboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="bundle-builder" className="flex items-center space-x-2">
+                <Settings className="w-4 h-4" />
+                <span>Buat Bundle</span>
+              </TabsTrigger>
               <TabsTrigger value="verifikasi" className="flex items-center space-x-2">
                 <Users className="w-4 h-4" />
                 <span>Verifikasi</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="laporan" className="flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span>Laporan</span>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <Dashboard />
-          </TabsContent>
+            <TabsContent value="dashboard" className="space-y-6">
+              <AdminDashboard />
+            </TabsContent>
 
-          <TabsContent value="penilaian" className="space-y-6">
-            <PenilaianForm />
-          </TabsContent>
+            <TabsContent value="bundle-builder" className="space-y-6">
+              <BundleBuilder />
+            </TabsContent>
 
-          <TabsContent value="evaluasi" className="space-y-6">
-            <EvaluasiForm />
-          </TabsContent>
-
-          {userRole === 'dinkes' && (
             <TabsContent value="verifikasi" className="space-y-6">
               <VerifikasiPanel />
             </TabsContent>
-          )}
-        </Tabs>
+
+            <TabsContent value="laporan" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Laporan Komprehensif</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">Fitur laporan akan tersedia segera...</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
       </main>
     </div>
   );
