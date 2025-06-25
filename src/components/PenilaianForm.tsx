@@ -4,16 +4,52 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Save, TrendingUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Save, TrendingUp, ChevronLeft, ChevronRight, FileText, Target } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+
+interface ScoringIndikator {
+  id: number;
+  klaster: string;
+  nama: string;
+  definisi: string;
+  type: 'scoring';
+  skor: {
+    0: string;
+    4: string;
+    7: string;
+    10: string;
+  };
+}
+
+interface TargetAchievementIndikator {
+  id: number;
+  klaster: string;
+  nama: string;
+  definisi: string;
+  type: 'target_achievement';
+  target_info: {
+    target_percentage: number;
+    total_sasaran: number;
+    satuan: string;
+  };
+}
+
+type Indikator = ScoringIndikator | TargetAchievementIndikator;
+
+interface IndikatorValue {
+  score?: number;
+  actual_achievement?: number;
+  calculated_percentage?: number;
+}
 
 const PenilaianForm = () => {
   const [currentIndikatorIndex, setCurrentIndikatorIndex] = useState(0);
-  const [selectedValues, setSelectedValues] = useState<Record<number, number>>({});
+  const [selectedValues, setSelectedValues] = useState<Record<number, IndikatorValue>>({});
   const [currentTribulan, setCurrentTribulan] = useState(1);
   const [evaluasiData, setEvaluasiData] = useState({
     1: { analisis: '', hambatan: '', rencana: '' },
@@ -29,12 +65,14 @@ const PenilaianForm = () => {
     4: { label: 'Q4 (Okt-Des)', period: 'Oktober - Desember 2024' }
   };
   
-  const mockIndikators = [
+  const mockIndikators: Indikator[] = [
+    // Klaster 1: Scoring System
     {
       id: 1,
       klaster: "Klaster 1: Promosi Kesehatan",
       nama: "Rencana 5 Tahunan",
       definisi: "Apakah Puskesmas memiliki rencana 5 tahunan yang sesuai visi, misi dan analisis kebutuhan masyarakat?",
+      type: 'scoring',
       skor: {
         0: "Tidak ada",
         4: "Ada, tapi tidak sesuai",
@@ -47,6 +85,7 @@ const PenilaianForm = () => {
       klaster: "Klaster 1: Promosi Kesehatan",
       nama: "Kegiatan Pos Bindu PTM",
       definisi: "Jumlah pos bindu PTM yang aktif melakukan kegiatan rutin",
+      type: 'scoring',
       skor: {
         0: "Tidak ada pos bindu yang aktif",
         4: "1-2 pos bindu aktif",
@@ -54,42 +93,152 @@ const PenilaianForm = () => {
         10: ">4 pos bindu aktif"
       }
     },
+    // Klaster 2: Target Achievement System
     {
       id: 3,
-      klaster: "Klaster 2: Pelayanan Kesehatan",
-      nama: "Ketersediaan Obat Esensial",
-      definisi: "Persentase ketersediaan obat esensial di Puskesmas",
-      skor: {
-        0: "< 60%",
-        4: "60-74%",
-        7: "75-89%",
-        10: ">= 90%"
+      klaster: "Klaster 2: Kesehatan Lingkungan",
+      nama: "Cakupan Inspeksi Sanitasi TPM",
+      definisi: "Persentase tempat pengelolaan makanan yang diinspeksi sanitasinya",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 90,
+        total_sasaran: 150,
+        satuan: "TPM"
+      }
+    },
+    {
+      id: 4,
+      klaster: "Klaster 2: Kesehatan Lingkungan",
+      nama: "Pembinaan TUPM",
+      definisi: "Jumlah tempat umum dan pengelolaan makanan yang dibina",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 85,
+        total_sasaran: 200,
+        satuan: "tempat"
+      }
+    },
+    // Klaster 3: Target Achievement System
+    {
+      id: 5,
+      klaster: "Klaster 3: Kesehatan Ibu & Anak",
+      nama: "Cakupan K4",
+      definisi: "Persentase ibu hamil yang mendapat pelayanan antenatal sesuai standar",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 95,
+        total_sasaran: 500,
+        satuan: "ibu hamil"
+      }
+    },
+    {
+      id: 6,
+      klaster: "Klaster 3: Kesehatan Ibu & Anak",
+      nama: "Cakupan Imunisasi Dasar Lengkap",
+      definisi: "Persentase bayi yang mendapat imunisasi dasar lengkap",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 95,
+        total_sasaran: 450,
+        satuan: "bayi"
+      }
+    },
+    // Klaster 4: Target Achievement System
+    {
+      id: 7,
+      klaster: "Klaster 4: Gizi Masyarakat",
+      nama: "Cakupan Balita Ditimbang",
+      definisi: "Persentase balita yang ditimbang di posyandu",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 85,
+        total_sasaran: 800,
+        satuan: "balita"
+      }
+    },
+    {
+      id: 8,
+      klaster: "Klaster 4: Gizi Masyarakat",
+      nama: "Pemberian Tablet Tambah Darah",
+      definisi: "Cakupan pemberian tablet tambah darah pada remaja putri",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 90,
+        total_sasaran: 300,
+        satuan: "remaja putri"
+      }
+    },
+    // Klaster 5: Target Achievement System
+    {
+      id: 9,
+      klaster: "Klaster 5: Pencegahan Penyakit",
+      nama: "Cakupan Penemuan TB",
+      definisi: "Persentase penemuan kasus TB dari target yang ditetapkan",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 70,
+        total_sasaran: 100,
+        satuan: "kasus"
+      }
+    },
+    {
+      id: 10,
+      klaster: "Klaster 5: Pencegahan Penyakit",
+      nama: "Cakupan Pemeriksaan IVA",
+      definisi: "Persentase wanita usia subur yang diperiksa IVA",
+      type: 'target_achievement',
+      target_info: {
+        target_percentage: 80,
+        total_sasaran: 250,
+        satuan: "WUS"
       }
     }
   ];
 
-  // Mock monthly data for charts
+  // Mock monthly data for charts (0-100 scale)
   const monthlyData = [
-    { bulan: 'Jan', nilai: 7 },
-    { bulan: 'Feb', nilai: 8 },
-    { bulan: 'Mar', nilai: 9 },
-    { bulan: 'Apr', nilai: 10 },
-    { bulan: 'Mei', nilai: 10 },
-    { bulan: 'Jun', nilai: 8 },
-    { bulan: 'Jul', nilai: 9 },
-    { bulan: 'Agu', nilai: 7 },
-    { bulan: 'Sep', nilai: 8 },
-    { bulan: 'Okt', nilai: 10 },
-    { bulan: 'Nov', nilai: 9 },
-    { bulan: 'Des', nilai: 10 }
+    { bulan: 'Jan', nilai: 78 },
+    { bulan: 'Feb', nilai: 82 },
+    { bulan: 'Mar', nilai: 85 },
+    { bulan: 'Apr', nilai: 88 },
+    { bulan: 'Mei', nilai: 92 },
+    { bulan: 'Jun', nilai: 89 },
+    { bulan: 'Jul', nilai: 91 },
+    { bulan: 'Agu', nilai: 87 },
+    { bulan: 'Sep', nilai: 90 },
+    { bulan: 'Okt', nilai: 94 },
+    { bulan: 'Nov', nilai: 96 },
+    { bulan: 'Des', nilai: 95 }
   ];
 
   const currentIndikator = mockIndikators[currentIndikatorIndex];
 
-  const handleValueChange = (indikatorId: number, value: string) => {
+  const handleScoringChange = (indikatorId: number, value: string) => {
+    const scoreValue = parseInt(value);
+    const calculatedPercentage = (scoreValue / 10) * 100; // Convert 0-10 to 0-100
+    
     setSelectedValues(prev => ({
       ...prev,
-      [indikatorId]: parseInt(value)
+      [indikatorId]: {
+        score: scoreValue,
+        calculated_percentage: calculatedPercentage
+      }
+    }));
+  };
+
+  const handleTargetAchievementChange = (indikatorId: number, actualValue: number) => {
+    const indikator = mockIndikators.find(ind => ind.id === indikatorId) as TargetAchievementIndikator;
+    if (!indikator || indikator.type !== 'target_achievement') return;
+
+    const targetSasaran = (indikator.target_info.target_percentage / 100) * indikator.target_info.total_sasaran;
+    const calculatedPercentage = Math.min(100, Math.max(0, (actualValue / targetSasaran) * 100));
+
+    setSelectedValues(prev => ({
+      ...prev,
+      [indikatorId]: {
+        actual_achievement: actualValue,
+        calculated_percentage: calculatedPercentage
+      }
     }));
   };
 
@@ -104,7 +253,19 @@ const PenilaianForm = () => {
   };
 
   const calculateProgress = (): number => {
-    return (Object.keys(selectedValues).length / mockIndikators.length) * 100;
+    const filledIndicators = Object.keys(selectedValues).length;
+    return (filledIndicators / mockIndikators.length) * 100;
+  };
+
+  const getDisplayValue = (indikatorId: number): string => {
+    const value = selectedValues[indikatorId];
+    if (!value) return '-';
+    
+    if (value.calculated_percentage !== undefined) {
+      return `${Math.round(value.calculated_percentage)}%`;
+    }
+    
+    return value.score?.toString() || value.actual_achievement?.toString() || '-';
   };
 
   const isDataComplete = (tribunan: number): boolean => {
@@ -125,7 +286,6 @@ const PenilaianForm = () => {
   };
 
   const handleSave = () => {
-    // Validate evaluation data for current tribunan
     const currentEvaluasi = evaluasiData[currentTribulan];
     if (!currentEvaluasi.analisis.trim() || !currentEvaluasi.hambatan.trim() || !currentEvaluasi.rencana.trim()) {
       toast({
@@ -140,6 +300,87 @@ const PenilaianForm = () => {
       title: "Data berhasil disimpan",
       description: `Penilaian dan evaluasi ${tribunanLabels[currentTribulan].label} tersimpan`,
     });
+  };
+
+  const renderScoringInput = (indikator: ScoringIndikator) => (
+    <RadioGroup 
+      value={selectedValues[indikator.id]?.score?.toString()} 
+      onValueChange={(value) => handleScoringChange(indikator.id, value)}
+      className="space-y-3"
+    >
+      {Object.entries(indikator.skor).map(([nilai, deskripsi]) => (
+        <div key={nilai} className="flex items-center space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+          <RadioGroupItem value={nilai} id={`${indikator.id}-${nilai}`} />
+          <Label 
+            htmlFor={`${indikator.id}-${nilai}`} 
+            className="flex-1 cursor-pointer text-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span><strong>{nilai}</strong> - {deskripsi}</span>
+            </div>
+          </Label>
+        </div>
+      ))}
+    </RadioGroup>
+  );
+
+  const renderTargetAchievementInput = (indikator: TargetAchievementIndikator) => {
+    const targetSasaran = Math.round((indikator.target_info.target_percentage / 100) * indikator.target_info.total_sasaran);
+    const currentValue = selectedValues[indikator.id];
+    
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">{targetSasaran}</div>
+            <div className="text-sm text-gray-600">Target Sasaran ({indikator.target_info.satuan})</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {indikator.target_info.target_percentage}% dari {indikator.target_info.total_sasaran} {indikator.target_info.satuan}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {currentValue?.calculated_percentage ? `${Math.round(currentValue.calculated_percentage)}%` : '0%'}
+            </div>
+            <div className="text-sm text-gray-600">Capaian Saat Ini</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {currentValue?.actual_achievement || 0} dari {targetSasaran} target
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor={`achievement-${indikator.id}`} className="text-sm font-medium">
+            Capaian Aktual ({indikator.target_info.satuan})
+          </Label>
+          <Input
+            id={`achievement-${indikator.id}`}
+            type="number"
+            min="0"
+            placeholder={`Masukkan jumlah ${indikator.target_info.satuan} yang tercapai...`}
+            value={currentValue?.actual_achievement || ''}
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              handleTargetAchievementChange(indikator.id, value);
+            }}
+            className="text-center text-lg font-semibold"
+          />
+          <div className="text-xs text-gray-500 text-center">
+            Masukkan angka capaian aktual untuk indikator ini
+          </div>
+        </div>
+
+        {currentValue?.calculated_percentage !== undefined && (
+          <div className="mt-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Progress Capaian</span>
+              <span className="font-medium">{Math.round(currentValue.calculated_percentage)}%</span>
+            </div>
+            <Progress value={currentValue.calculated_percentage} className="h-3" />
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -184,43 +425,35 @@ const PenilaianForm = () => {
                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                   {currentIndikator.klaster}
                 </Badge>
-                <CardTitle className="text-lg font-semibold text-gray-800">
-                  {currentIndikator.id}. {currentIndikator.nama}
-                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    {currentIndikator.id}. {currentIndikator.nama}
+                  </CardTitle>
+                  {currentIndikator.type === 'target_achievement' && (
+                    <Target className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
                 <p className="text-sm text-gray-600 leading-relaxed">
                   {currentIndikator.definisi}
                 </p>
               </div>
               <div className="flex flex-col items-end space-y-2">
                 <div className="text-right">
-                  <p className="text-xs text-gray-500">Nilai Saat Ini</p>
+                  <p className="text-xs text-gray-500">
+                    {currentIndikator.type === 'scoring' ? 'Skor' : 'Capaian'}
+                  </p>
                   <Badge variant="secondary" className="bg-green-100 text-green-700 text-lg px-3 py-1">
-                    {selectedValues[currentIndikator.id] || 0}
+                    {getDisplayValue(currentIndikator.id)}
                   </Badge>
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <RadioGroup 
-              value={selectedValues[currentIndikator.id]?.toString()} 
-              onValueChange={(value) => handleValueChange(currentIndikator.id, value)}
-              className="space-y-3"
-            >
-              {Object.entries(currentIndikator.skor).map(([nilai, deskripsi]) => (
-                <div key={nilai} className="flex items-center space-x-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <RadioGroupItem value={nilai} id={`${currentIndikator.id}-${nilai}`} />
-                  <Label 
-                    htmlFor={`${currentIndikator.id}-${nilai}`} 
-                    className="flex-1 cursor-pointer text-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span><strong>{nilai}</strong> - {deskripsi}</span>
-                    </div>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+            {currentIndikator.type === 'scoring' 
+              ? renderScoringInput(currentIndikator as ScoringIndikator)
+              : renderTargetAchievementInput(currentIndikator as TargetAchievementIndikator)
+            }
           </CardContent>
         </Card>
 
@@ -237,8 +470,8 @@ const PenilaianForm = () => {
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="bulan" />
-                <YAxis domain={[0, 10]} />
-                <Tooltip />
+                <YAxis domain={[0, 100]} />
+                <Tooltip formatter={(value) => [`${value}%`, 'Capaian']} />
                 <Bar dataKey="nilai" fill="#6366f1" />
               </BarChart>
             </ResponsiveContainer>
@@ -267,7 +500,7 @@ const PenilaianForm = () => {
                   <tr className="border-b">
                     <td className="p-2 font-medium">{currentIndikator.nama}</td>
                     {monthlyData.map(month => (
-                      <td key={month.bulan} className="text-center p-2">{month.nilai}</td>
+                      <td key={month.bulan} className="text-center p-2">{month.nilai}%</td>
                     ))}
                   </tr>
                 </tbody>
@@ -445,7 +678,7 @@ const PenilaianForm = () => {
         </div>
       </div>
 
-      {/* Simplified Sidebar - Removed score recap */}
+      {/* Sidebar */}
       <div className="space-y-6">
         <Card className="sticky top-6 shadow-lg">
           <CardHeader>
@@ -480,12 +713,20 @@ const PenilaianForm = () => {
                   }`}
                   onClick={() => setCurrentIndikatorIndex(index)}
                 >
-                  <span className="truncate">{indikator.id}. {indikator.nama}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-1">
+                      <span className="truncate">{indikator.id}. {indikator.nama}</span>
+                      {indikator.type === 'target_achievement' && (
+                        <Target className="w-3 h-3 text-green-600 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">{indikator.klaster}</div>
+                  </div>
                   <Badge 
                     variant="secondary" 
                     className={`ml-2 ${selectedValues[indikator.id] ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
                   >
-                    {selectedValues[indikator.id] || '-'}
+                    {getDisplayValue(indikator.id)}
                   </Badge>
                 </div>
               ))}
