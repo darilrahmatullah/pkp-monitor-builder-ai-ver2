@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,17 +8,26 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Save, BarChart3, CheckCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, BarChart3, CheckCircle, TrendingUp, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const PenilaianForm = () => {
   const [currentIndikatorIndex, setCurrentIndikatorIndex] = useState(0);
   const [selectedValues, setSelectedValues] = useState<Record<number, number>>({});
+  const [currentTribulan, setCurrentTribulan] = useState(1);
   const [evaluasiData, setEvaluasiData] = useState({
-    analisis: '',
-    hambatan: '',
-    rencana: ''
+    1: { analisis: '', hambatan: '', rencana: '' },
+    2: { analisis: '', hambatan: '', rencana: '' },
+    3: { analisis: '', hambatan: '', rencana: '' },
+    4: { analisis: '', hambatan: '', rencana: '' }
   });
+
+  const tribunanLabels = {
+    1: { label: 'Q1 (Jan-Mar)', period: 'Januari - Maret 2024' },
+    2: { label: 'Q2 (Apr-Jun)', period: 'April - Juni 2024' },
+    3: { label: 'Q3 (Jul-Sep)', period: 'Juli - September 2024' },
+    4: { label: 'Q4 (Okt-Des)', period: 'Oktober - Desember 2024' }
+  };
   
   const mockIndikators = [
     {
@@ -85,12 +93,27 @@ const PenilaianForm = () => {
     }));
   };
 
+  const handleEvaluasiChange = (field: string, value: string) => {
+    setEvaluasiData(prev => ({
+      ...prev,
+      [currentTribulan]: {
+        ...prev[currentTribulan],
+        [field]: value
+      }
+    }));
+  };
+
   const calculateTotalScore = (): number => {
     return Object.values(selectedValues).reduce((sum: number, val: number) => sum + val, 0);
   };
 
   const calculateProgress = (): number => {
     return (Object.keys(selectedValues).length / mockIndikators.length) * 100;
+  };
+
+  const isDataComplete = (tribunan: number): boolean => {
+    const data = evaluasiData[tribunan];
+    return data.analisis.trim() && data.hambatan.trim() && data.rencana.trim();
   };
 
   const handlePrevious = () => {
@@ -106,9 +129,20 @@ const PenilaianForm = () => {
   };
 
   const handleSave = () => {
+    // Validate evaluation data for current tribunan
+    const currentEvaluasi = evaluasiData[currentTribulan];
+    if (!currentEvaluasi.analisis.trim() || !currentEvaluasi.hambatan.trim() || !currentEvaluasi.rencana.trim()) {
+      toast({
+        title: "Data evaluasi belum lengkap",
+        description: `Mohon lengkapi evaluasi untuk ${tribunanLabels[currentTribulan].label}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     toast({
       title: "Data berhasil disimpan",
-      description: `Total skor: ${calculateTotalScore()}`,
+      description: `Total skor: ${calculateTotalScore()} | Evaluasi ${tribunanLabels[currentTribulan].label} tersimpan`,
     });
   };
 
@@ -247,70 +281,171 @@ const PenilaianForm = () => {
           </CardContent>
         </Card>
 
-        {/* Quarterly Evaluation - Only show on last indicator */}
-        {currentIndikatorIndex === mockIndikators.length - 1 && (
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-800">
-                ✏️ Evaluasi Triwulanan
-              </CardTitle>
-              <div className="flex space-x-2 mt-4">
-                {[1, 2, 3, 4].map((quarter) => (
-                  <Badge 
-                    key={quarter}
-                    variant={quarter === 4 ? "default" : "outline"}
-                    className={quarter === 4 ? "bg-blue-600" : ""}
+        {/* Evaluasi Triwulanan Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
+                  <FileText className="w-6 h-6 mr-2 text-blue-600" />
+                  Evaluasi Triwulanan
+                </CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  {tribunanLabels[currentTribulan].period}
+                </p>
+              </div>
+              <Badge 
+                variant={isDataComplete(currentTribulan) ? "default" : "secondary"}
+                className="text-sm"
+              >
+                {isDataComplete(currentTribulan) ? "Lengkap" : "Belum Lengkap"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentTribulan(Math.max(1, currentTribulan - 1))}
+                disabled={currentTribulan === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Sebelumnya
+              </Button>
+
+              <div className="flex space-x-2">
+                {[1, 2, 3, 4].map((q) => (
+                  <Button
+                    key={q}
+                    variant={currentTribulan === q ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentTribulan(q)}
+                    className="relative"
                   >
-                    {quarter}
-                  </Badge>
+                    {tribunanLabels[q].label}
+                    {isDataComplete(q) && (
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
+                    )}
+                  </Button>
                 ))}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="analisis" className="text-sm font-medium text-gray-700">Analisis</Label>
-                <Textarea
-                  id="analisis"
-                  placeholder="Masukkan analisis evaluasi triwulanan..."
-                  value={evaluasiData.analisis}
-                  onChange={(e) => setEvaluasiData(prev => ({ ...prev, analisis: e.target.value }))}
-                  className="mt-1"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="hambatan" className="text-sm font-medium text-gray-700">Hambatan</Label>
-                <Textarea
-                  id="hambatan"
-                  placeholder="Masukkan hambatan yang dihadapi..."
-                  value={evaluasiData.hambatan}
-                  onChange={(e) => setEvaluasiData(prev => ({ ...prev, hambatan: e.target.value }))}
-                  className="mt-1"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="rencana" className="text-sm font-medium text-gray-700">Rencana Tindak Lanjut</Label>
-                <Textarea
-                  id="rencana"
-                  placeholder="Masukkan rencana tindak lanjut..."
-                  value={evaluasiData.rencana}
-                  onChange={(e) => setEvaluasiData(prev => ({ ...prev, rencana: e.target.value }))}
-                  className="mt-1"
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Save Button - Always visible */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentTribulan(Math.min(4, currentTribulan + 1))}
+                disabled={currentTribulan === 4}
+              >
+                Selanjutnya
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+
+            {/* Evaluasi Form */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Analisis Capaian */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    📊 Analisis Capaian
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Jelaskan pencapaian kinerja pada triwulan ini
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Contoh: Pada triwulan ini, capaian imunisasi mencapai 85% dari target yang ditetapkan. Peningkatan signifikan terjadi pada program..."
+                    value={evaluasiData[currentTribulan].analisis}
+                    onChange={(e) => handleEvaluasiChange('analisis', e.target.value)}
+                    className="min-h-[200px] resize-none"
+                  />
+                  <div className="mt-2 text-xs text-gray-500">
+                    {evaluasiData[currentTribulan].analisis.length}/500 karakter
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hambatan */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    🚧 Hambatan & Kendala
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Identifikasi hambatan yang dihadapi
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Contoh: Kendala utama yang dihadapi antara lain keterbatasan tenaga kesehatan, kurangnya alat medis, serta kesadaran masyarakat yang masih rendah..."
+                    value={evaluasiData[currentTribulan].hambatan}
+                    onChange={(e) => handleEvaluasiChange('hambatan', e.target.value)}
+                    className="min-h-[200px] resize-none"
+                  />
+                  <div className="mt-2 text-xs text-gray-500">
+                    {evaluasiData[currentTribulan].hambatan.length}/500 karakter
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Rencana Tindak Lanjut */}
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    🎯 Rencana Tindak Lanjut
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Rencana perbaikan untuk triwulan selanjutnya
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Contoh: Untuk triwulan selanjutnya, akan dilakukan penambahan jadwal posyandu, pelatihan kader kesehatan, serta sosialisasi intensif ke masyarakat..."
+                    value={evaluasiData[currentTribulan].rencana}
+                    onChange={(e) => handleEvaluasiChange('rencana', e.target.value)}
+                    className="min-h-[200px] resize-none"
+                  />
+                  <div className="mt-2 text-xs text-gray-500">
+                    {evaluasiData[currentTribulan].rencana.length}/500 karakter
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Progress Summary */}
+            <Card className="shadow-lg mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-800">Progress Evaluasi</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((q) => (
+                    <div key={q} className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className={`text-2xl mb-2 ${isDataComplete(q) ? 'text-green-500' : 'text-gray-400'}`}>
+                        {isDataComplete(q) ? '✓' : '○'}
+                      </div>
+                      <div className="text-sm font-medium text-gray-700">
+                        {tribunanLabels[q].label}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {isDataComplete(q) ? 'Selesai' : 'Belum Diisi'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+
+        {/* Save Button */}
         <div className="flex justify-end">
           <Button onClick={handleSave} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
             <Save className="w-4 h-4 mr-2" />
-            Simpan Penilaian
+            Simpan Penilaian & Evaluasi {tribunanLabels[currentTribulan].label}
           </Button>
         </div>
       </div>
@@ -363,6 +498,31 @@ const PenilaianForm = () => {
                     className={`ml-2 ${selectedValues[indikator.id] ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
                   >
                     {selectedValues[indikator.id] || '-'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+
+            {/* Evaluasi Progress */}
+            <Separator />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">Progress Evaluasi:</p>
+              {[1, 2, 3, 4].map((q) => (
+                <div 
+                  key={q} 
+                  className={`flex items-center justify-between p-2 rounded text-xs cursor-pointer transition-colors ${
+                    q === currentTribulan 
+                      ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                      : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => setCurrentTribulan(q)}
+                >
+                  <span>{tribunanLabels[q].label}</span>
+                  <Badge 
+                    variant="secondary" 
+                    className={`ml-2 ${isDataComplete(q) ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
+                  >
+                    {isDataComplete(q) ? '✓' : '○'}
                   </Badge>
                 </div>
               ))}

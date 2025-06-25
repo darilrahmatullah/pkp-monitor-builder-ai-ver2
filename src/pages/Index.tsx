@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,7 +6,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
-import EvaluasiForm from '@/components/EvaluasiForm';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
@@ -70,20 +68,16 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {userRole === 'puskesmas' ? (
-          // User Interface (Puskesmas)
+          // User Interface (Puskesmas) - Now only 2 tabs
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-3 bg-white shadow-sm border border-gray-200">
+            <TabsList className="grid w-full grid-cols-2 lg:w-fit lg:grid-cols-2 bg-white shadow-sm border border-gray-200">
               <TabsTrigger value="dashboard" className="flex items-center space-x-2">
                 <BarChart3 className="w-4 h-4" />
                 <span>Dashboard</span>
               </TabsTrigger>
               <TabsTrigger value="penilaian" className="flex items-center space-x-2">
                 <FileText className="w-4 h-4" />
-                <span>Penilaian</span>
-              </TabsTrigger>
-              <TabsTrigger value="evaluasi" className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4" />
-                <span>Evaluasi</span>
+                <span>Penilaian & Evaluasi</span>
               </TabsTrigger>
             </TabsList>
 
@@ -93,10 +87,6 @@ const Index = () => {
 
             <TabsContent value="penilaian" className="space-y-6">
               <PenilaianForm />
-            </TabsContent>
-
-            <TabsContent value="evaluasi" className="space-y-6">
-              <EvaluasiForm />
             </TabsContent>
           </Tabs>
         ) : (
