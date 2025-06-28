@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +11,6 @@ import {
   CheckCircle, 
   AlertCircle, 
   TrendingUp,
-  Plus,
   Settings,
   Eye
 } from 'lucide-react';
@@ -87,14 +85,10 @@ const AdminDashboard = () => {
 
       {/* Bundle Management */}
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-800">
             Management Bundle PKP
           </CardTitle>
-          <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Buat Bundle Baru
-          </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
