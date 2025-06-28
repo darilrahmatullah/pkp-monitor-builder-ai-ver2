@@ -104,13 +104,16 @@ const BundleBuilder = () => {
         .select('*')
         .order('tahun', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading bundles:', error);
+        throw error;
+      }
       setBundles(data || []);
     } catch (error) {
       console.error('Error loading bundles:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat data bundle",
+        description: "Gagal memuat data bundle: " + (error?.message || 'Unknown error'),
         variant: "destructive"
       });
     } finally {
@@ -137,7 +140,10 @@ const BundleBuilder = () => {
         .eq('id', bundleId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading bundle details:', error);
+        throw error;
+      }
 
       // Transform database data to local format
       const transformedBundle: BundlePKP = {
@@ -186,7 +192,7 @@ const BundleBuilder = () => {
       console.error('Error loading bundle details:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat detail bundle",
+        description: "Gagal memuat detail bundle: " + (error?.message || 'Unknown error'),
         variant: "destructive"
       });
     } finally {
@@ -362,6 +368,8 @@ const BundleBuilder = () => {
 
     setSaving(true);
     try {
+      console.log('Starting save process for bundle:', selectedBundle);
+
       // Validate bundle data
       if (!selectedBundle.judul.trim()) {
         throw new Error('Judul bundle harus diisi');
@@ -388,12 +396,24 @@ const BundleBuilder = () => {
 
       // Save or update bundle
       if (selectedBundle.isNew) {
+        console.log('Creating new bundle...');
+        
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.error('Error getting user:', userError);
+          throw new Error('Tidak dapat mengidentifikasi user');
+        }
+
         const bundleData: BundleInsert = {
           tahun: selectedBundle.tahun,
           judul: selectedBundle.judul,
           status: selectedBundle.status,
-          deskripsi: selectedBundle.deskripsi || null
+          deskripsi: selectedBundle.deskripsi || null,
+          created_by: user?.id || null
         };
+
+        console.log('Bundle data to insert:', bundleData);
 
         const { data: newBundle, error: bundleError } = await supabase
           .from('bundles')
@@ -401,9 +421,15 @@ const BundleBuilder = () => {
           .select()
           .single();
 
-        if (bundleError) throw bundleError;
+        if (bundleError) {
+          console.error('Error creating bundle:', bundleError);
+          throw new Error(`Gagal membuat bundle: ${bundleError.message}`);
+        }
+
+        console.log('Bundle created successfully:', newBundle);
         bundleId = newBundle.id;
       } else {
+        console.log('Updating existing bundle...');
         const { error: updateError } = await supabase
           .from('bundles')
           .update({
@@ -413,7 +439,10 @@ const BundleBuilder = () => {
           })
           .eq('id', bundleId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating bundle:', updateError);
+          throw new Error(`Gagal mengupdate bundle: ${updateError.message}`);
+        }
       }
 
       // Save klasters and indikators
@@ -421,6 +450,8 @@ const BundleBuilder = () => {
         let klasterId = klaster.id;
 
         if (klaster.isNew || klaster.id > 1000000) { // New klaster (using timestamp as temp ID)
+          console.log('Creating new klaster:', klaster.nama_klaster);
+          
           const klasterData: KlasterInsert = {
             bundle_id: bundleId!,
             nama_klaster: klaster.nama_klaster,
@@ -433,10 +464,15 @@ const BundleBuilder = () => {
             .select()
             .single();
 
-          if (klasterError) throw klasterError;
+          if (klasterError) {
+            console.error('Error creating klaster:', klasterError);
+            throw new Error(`Gagal membuat klaster: ${klasterError.message}`);
+          }
+
           klasterId = newKlaster.id;
         } else {
           // Update existing klaster
+          console.log('Updating existing klaster:', klaster.nama_klaster);
           const { error: updateError } = await supabase
             .from('klasters')
             .update({
@@ -445,7 +481,10 @@ const BundleBuilder = () => {
             })
             .eq('id', klasterId);
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error('Error updating klaster:', updateError);
+            throw new Error(`Gagal mengupdate klaster: ${updateError.message}`);
+          }
         }
 
         // Save indikators
@@ -453,6 +492,8 @@ const BundleBuilder = () => {
           let indikatorId = indikator.id;
 
           if (indikator.id > 1000000) { // New indikator (using timestamp as temp ID)
+            console.log('Creating new indikator:', indikator.nama_indikator);
+            
             const indikatorData: IndikatorInsert = {
               klaster_id: klasterId,
               nama_indikator: indikator.nama_indikator,
@@ -467,11 +508,17 @@ const BundleBuilder = () => {
               .select()
               .single();
 
-            if (indikatorError) throw indikatorError;
+            if (indikatorError) {
+              console.error('Error creating indikator:', indikatorError);
+              throw new Error(`Gagal membuat indikator: ${indikatorError.message}`);
+            }
+
             indikatorId = newIndikator.id;
 
             // Save indikator details
             if (indikator.type === 'scoring') {
+              console.log('Creating scoring details for indikator:', indikator.nama_indikator);
+              
               const scoringData: ScoringIndikatorInsert = {
                 indikator_id: indikatorId,
                 skor_0: indikator.skor[0],
@@ -484,8 +531,13 @@ const BundleBuilder = () => {
                 .from('scoring_indikators')
                 .insert(scoringData);
 
-              if (scoringError) throw scoringError;
+              if (scoringError) {
+                console.error('Error creating scoring details:', scoringError);
+                throw new Error(`Gagal membuat detail scoring: ${scoringError.message}`);
+              }
             } else {
+              console.log('Creating target achievement details for indikator:', indikator.nama_indikator);
+              
               const targetData: TargetAchievementIndikatorInsert = {
                 indikator_id: indikatorId,
                 target_percentage: indikator.target_info.target_percentage,
@@ -498,10 +550,14 @@ const BundleBuilder = () => {
                 .from('target_achievement_indikators')
                 .insert(targetData);
 
-              if (targetError) throw targetError;
+              if (targetError) {
+                console.error('Error creating target achievement details:', targetError);
+                throw new Error(`Gagal membuat detail target: ${targetError.message}`);
+              }
             }
           } else {
             // Update existing indikator
+            console.log('Updating existing indikator:', indikator.nama_indikator);
             const { error: updateError } = await supabase
               .from('indikators')
               .update({
@@ -511,7 +567,10 @@ const BundleBuilder = () => {
               })
               .eq('id', indikatorId);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+              console.error('Error updating indikator:', updateError);
+              throw new Error(`Gagal mengupdate indikator: ${updateError.message}`);
+            }
 
             // Update indikator details
             if (indikator.type === 'scoring') {
@@ -525,7 +584,10 @@ const BundleBuilder = () => {
                 })
                 .eq('indikator_id', indikatorId);
 
-              if (scoringError) throw scoringError;
+              if (scoringError) {
+                console.error('Error updating scoring details:', scoringError);
+                throw new Error(`Gagal mengupdate detail scoring: ${scoringError.message}`);
+              }
             } else {
               const { error: targetError } = await supabase
                 .from('target_achievement_indikators')
@@ -537,11 +599,16 @@ const BundleBuilder = () => {
                 })
                 .eq('indikator_id', indikatorId);
 
-              if (targetError) throw targetError;
+              if (targetError) {
+                console.error('Error updating target achievement details:', targetError);
+                throw new Error(`Gagal mengupdate detail target: ${targetError.message}`);
+              }
             }
           }
         }
       }
+
+      console.log('Bundle saved successfully!');
 
       toast({
         title: "Berhasil!",
