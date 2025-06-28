@@ -176,6 +176,18 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   };
 
   const handleSignOut = async () => {
+    // Clear demo users
+    if (user?.id === 'demo-user-puskesmas' || user?.id === 'demo-admin-dinkes') {
+      setUser(null);
+      setUserProfile(null);
+      toast({
+        title: "Demo Mode Berakhir",
+        description: "Anda telah keluar dari mode demo",
+      });
+      return;
+    }
+
+    // Sign out from Supabase
     await supabase.auth.signOut();
     setUser(null);
     setUserProfile(null);
