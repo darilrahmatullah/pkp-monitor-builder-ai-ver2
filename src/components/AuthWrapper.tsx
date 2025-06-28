@@ -44,17 +44,24 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     setConnectionStatus('checking');
     
     if (!isSupabaseConfigured()) {
+      console.log('Supabase not configured, using demo mode');
       setConnectionStatus('disconnected');
       setLoading(false);
       return;
     }
 
-    const isConnected = await testSupabaseConnection();
-    setConnectionStatus(isConnected ? 'connected' : 'disconnected');
-    
-    if (isConnected) {
-      await getInitialSession();
-    } else {
+    try {
+      const isConnected = await testSupabaseConnection();
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      
+      if (isConnected) {
+        await getInitialSession();
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.warn('Connection check failed:', error);
+      setConnectionStatus('disconnected');
       setLoading(false);
     }
   };
@@ -233,34 +240,35 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-gray-800 flex items-center justify-center">
-              <Database className="w-6 h-6 mr-2 text-red-500" />
-              Koneksi Database
+              <Database className="w-6 h-6 mr-2 text-blue-500" />
+              PKP Monitor
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Tidak dapat terhubung ke database. Silakan:
-                <br />
-                1. Periksa file .env Anda
-                <br />
-                2. Pastikan VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY sudah benar
-                <br />
-                3. Atau gunakan mode demo untuk melihat aplikasi
+                Database belum dikonfigurasi. Gunakan mode demo untuk melihat aplikasi atau konfigurasikan Supabase untuk data real.
               </AlertDescription>
             </Alert>
 
             <div className="space-y-2">
-              <Button onClick={enterDemoMode} className="w-full" variant="outline">
+              <Button onClick={enterDemoMode} className="w-full" size="lg">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Demo Mode (Puskesmas)
               </Button>
-              <Button onClick={enterDemoModeAdmin} className="w-full" variant="outline">
+              <Button onClick={enterDemoModeAdmin} className="w-full" size="lg" variant="outline">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Demo Mode (Admin Dinkes)
               </Button>
-              <Button onClick={checkConnection} className="w-full">
+            </div>
+
+            <div className="text-center">
+              <Button
+                variant="link"
+                onClick={checkConnection}
+                className="text-sm"
+              >
                 <Database className="w-4 h-4 mr-2" />
                 Coba Koneksi Lagi
               </Button>

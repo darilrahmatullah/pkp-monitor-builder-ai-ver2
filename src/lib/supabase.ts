@@ -2,16 +2,19 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
 // Fallback values for development
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-placeholder.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-placeholder-key'
 
 // Check if we have valid Supabase credentials
-const hasValidCredentials = supabaseUrl !== 'https://placeholder.supabase.co' && 
-                           supabaseAnonKey !== 'placeholder-key' &&
-                           supabaseUrl.includes('.supabase.co')
+const hasValidCredentials = supabaseUrl !== 'https://demo-placeholder.supabase.co' && 
+                           supabaseAnonKey !== 'demo-placeholder-key' &&
+                           supabaseUrl.includes('.supabase.co') &&
+                           !supabaseUrl.includes('your-project-ref') &&
+                           !supabaseAnonKey.includes('your-anon-key') &&
+                           !supabaseAnonKey.includes('placeholder')
 
 if (!hasValidCredentials) {
-  console.warn('⚠️ Supabase credentials not configured properly. Please check your .env file.')
+  console.warn('⚠️ Supabase credentials not configured properly. Using demo mode.')
   console.warn('Required variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY')
 }
 
@@ -87,17 +90,32 @@ export async function executeQuery<T>(
   }
 }
 
-// Test connection function
+// Test connection function with better error handling
 export async function testSupabaseConnection(): Promise<boolean> {
   try {
     if (!hasValidCredentials) {
+      console.log('Supabase not configured, skipping connection test')
       return false
     }
     
-    const { data, error } = await supabase.from('puskesmas').select('count').limit(1)
-    return !error
-  } catch (error) {
-    console.error('Connection test failed:', error)
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Connection timeout')), 5000)
+    })
+    
+    const connectionPromise = supabase.from('puskesmas').select('count').limit(1)
+    
+    const { data, error } = await Promise.race([connectionPromise, timeoutPromise])
+    
+    if (error) {
+      console.warn('Supabase connection test failed:', error.message)
+      return false
+    }
+    
+    console.log('Supabase connection successful')
+    return true
+  } catch (error: any) {
+    console.warn('Supabase connection test failed:', error?.message || 'Unknown error')
     return false
   }
 }
