@@ -54,9 +54,36 @@ const Auth = () => {
       }
 
       if (data.user) {
+        // Check if user profile exists, if not create one for demo accounts
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError && profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create one for demo accounts
+          const role = data.user.email?.includes('dinkes') ? 'dinkes' : 'puskesmas';
+          const nama = data.user.email?.includes('dinkes') ? 'Admin Dinkes' : 'User Puskesmas';
+          
+          const { error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: data.user.email!,
+              nama: nama,
+              role: role,
+              puskesmas_id: role === 'puskesmas' ? 1 : null // Default to first puskesmas for demo
+            });
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          }
+        }
+
         toast({
           title: "Login berhasil!",
-          description: "Selamat datang di PKP Monitor",
+          description: `Selamat datang di PKP Monitor${data.user.email?.includes('dinkes') ? ' (Admin)' : ''}`,
         });
       }
     } catch (error: any) {
@@ -141,6 +168,60 @@ const Auth = () => {
     } catch (error: any) {
       console.error('Sign up error:', error);
       setError(error.message || 'Terjadi kesalahan saat registrasi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick login functions for demo
+  const quickLogin = async (email: string, password: string) => {
+    setSignInData({ email, password });
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error } = await auth.signIn(email, password);
+      
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Check if user profile exists, if not create one for demo accounts
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError && profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create one for demo accounts
+          const role = email.includes('dinkes') ? 'dinkes' : 'puskesmas';
+          const nama = email.includes('dinkes') ? 'Admin Dinkes' : 'User Puskesmas';
+          
+          const { error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: email,
+              nama: nama,
+              role: role,
+              puskesmas_id: role === 'puskesmas' ? 1 : null
+            });
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          }
+        }
+
+        toast({
+          title: "Login berhasil!",
+          description: `Selamat datang di PKP Monitor${email.includes('dinkes') ? ' (Admin)' : ''}`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Quick login error:', error);
+      setError(error.message || 'Terjadi kesalahan saat login');
     } finally {
       setLoading(false);
     }
@@ -348,13 +429,38 @@ const Auth = () => {
         {/* Demo Accounts Info */}
         <Card className="mt-6 bg-blue-50 border-blue-200">
           <CardContent className="p-4">
-            <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
+            <h3 className="font-semibold text-blue-800 mb-3 flex items-center">
               <Users className="w-4 h-4 mr-2" />
-              Akun Demo
+              Akun Demo - Klik untuk Login Cepat
             </h3>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p><strong>Puskesmas:</strong> puskesmas@demo.com / demo123</p>
-              <p><strong>Dinkes:</strong> dinkes@demo.com / demo123</p>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-left bg-green-50 border-green-200 hover:bg-green-100"
+                onClick={() => quickLogin('puskesmas@demo.com', 'demo123')}
+                disabled={loading}
+              >
+                <Building2 className="w-4 h-4 mr-2 text-green-600" />
+                <div className="text-left">
+                  <div className="font-medium">Puskesmas Demo</div>
+                  <div className="text-xs text-gray-500">puskesmas@demo.com</div>
+                </div>
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-left bg-purple-50 border-purple-200 hover:bg-purple-100"
+                onClick={() => quickLogin('dinkes@demo.com', 'demo123')}
+                disabled={loading}
+              >
+                <Shield className="w-4 h-4 mr-2 text-purple-600" />
+                <div className="text-left">
+                  <div className="font-medium">Admin Dinkes Demo</div>
+                  <div className="text-xs text-gray-500">dinkes@demo.com</div>
+                </div>
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -11,17 +11,62 @@ import RekapSkor from '@/components/RekapSkor';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
-import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award, LogOut, User, ChevronDown } from 'lucide-react';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award, LogOut, User, ChevronDown, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // For demo purposes, we'll determine role based on email or default to puskesmas
-  const userRole = user?.email?.includes('dinkes') ? 'dinkes' : 'puskesmas';
-  const userName = user?.user_metadata?.nama || user?.email?.split('@')[0] || 'User';
+  // Load user profile to get role information
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading user profile:', error);
+          // If no profile exists, determine role from email for demo accounts
+          const roleFromEmail = user.email?.includes('dinkes') ? 'dinkes' : 'puskesmas';
+          setUserProfile({
+            id: user.id,
+            email: user.email,
+            nama: user.user_metadata?.nama || user.email?.split('@')[0] || 'User',
+            role: roleFromEmail
+          });
+        } else {
+          setUserProfile(data);
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Fallback to email-based role detection
+        const roleFromEmail = user.email?.includes('dinkes') ? 'dinkes' : 'puskesmas';
+        setUserProfile({
+          id: user.id,
+          email: user.email,
+          nama: user.user_metadata?.nama || user.email?.split('@')[0] || 'User',
+          role: roleFromEmail
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
+
+  const userRole = userProfile?.role || 'puskesmas';
+  const userName = userProfile?.nama || user?.user_metadata?.nama || user?.email?.split('@')[0] || 'User';
 
   const handleSignOut = async () => {
     try {
@@ -39,6 +84,18 @@ const Index = () => {
       });
     }
   };
+
+  // Show loading while determining user role
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Memuat profil pengguna...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
@@ -83,6 +140,9 @@ const Index = () => {
                   <div className="px-3 py-2">
                     <p className="text-sm font-medium text-gray-900">{userName}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
+                    <p className="text-xs text-blue-600 font-medium mt-1">
+                      {userRole === 'dinkes' ? 'Administrator' : 'Puskesmas'}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="cursor-pointer">
@@ -107,7 +167,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {userRole === 'puskesmas' ? (
-          // User Interface (Puskesmas) - Now 3 tabs with separate Rekap Skor
+          // User Interface (Puskesmas) - 3 tabs
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-3 bg-white shadow-sm border border-gray-200">
               <TabsTrigger value="dashboard" className="flex items-center space-x-2">
@@ -137,7 +197,7 @@ const Index = () => {
             </TabsContent>
           </Tabs>
         ) : (
-          // Admin Interface (Dinkes)
+          // Admin Interface (Dinkes) - 4 tabs
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4 lg:w-fit lg:grid-cols-4 bg-white shadow-sm border border-gray-200">
               <TabsTrigger value="dashboard" className="flex items-center space-x-2">
