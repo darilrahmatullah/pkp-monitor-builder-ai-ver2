@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { 
   Plus, 
   Trash2, 
@@ -18,9 +19,23 @@ import {
   FolderPlus,
   Target,
   Calendar,
-  Clock
+  Clock,
+  Loader2,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import type { 
+  Bundle, 
+  BundleInsert, 
+  Klaster, 
+  KlasterInsert, 
+  Indikator, 
+  IndikatorInsert,
+  ScoringIndikatorInsert,
+  TargetAchievementIndikatorInsert 
+} from '@/types/database';
 
 interface ScoringIndikator {
   id: number;
@@ -48,63 +63,169 @@ interface TargetAchievementIndikator {
   };
 }
 
-type Indikator = ScoringIndikator | TargetAchievementIndikator;
+type IndikatorLocal = ScoringIndikator | TargetAchievementIndikator;
 
-interface Klaster {
+interface KlasterLocal {
   id: number;
   nama_klaster: string;
-  indikator: Indikator[];
+  indikator: IndikatorLocal[];
+  isNew?: boolean;
 }
 
 interface BundlePKP {
+  id?: number;
   tahun: number;
   judul: string;
-  klaster: Klaster[];
+  status: 'draft' | 'active' | 'completed';
+  deskripsi?: string;
+  klaster: KlasterLocal[];
+  isNew?: boolean;
 }
 
 const BundleBuilder = () => {
-  const [bundle, setBundle] = useState<BundlePKP>({
-    tahun: 2025,
-    judul: 'Bundle PKP 2025',
-    klaster: [
-      {
-        id: 1,
-        nama_klaster: 'Klaster 1: Promosi Kesehatan',
-        indikator: [
-          {
-            id: 1,
-            nama_indikator: 'Cakupan Penyuluhan Kesehatan',
-            definisi_operasional: 'Persentase kegiatan penyuluhan kesehatan yang dilaksanakan',
-            type: 'scoring',
-            skor: {
-              0: 'Tidak ada kegiatan penyuluhan (0%)',
-              4: 'Kegiatan penyuluhan 1-40% dari target',
-              7: 'Kegiatan penyuluhan 41-80% dari target',
-              10: 'Kegiatan penyuluhan >80% dari target'
-            }
-          }
-        ]
-      }
-    ]
-  });
-
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [selectedBundle, setSelectedBundle] = useState<BundlePKP | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingKlaster, setEditingKlaster] = useState<number | null>(null);
   const [editingIndikator, setEditingIndikator] = useState<number | null>(null);
 
+  // Load existing bundles
+  useEffect(() => {
+    loadBundles();
+  }, []);
+
+  const loadBundles = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('bundles')
+        .select('*')
+        .order('tahun', { ascending: false });
+
+      if (error) throw error;
+      setBundles(data || []);
+    } catch (error) {
+      console.error('Error loading bundles:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data bundle",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBundleDetails = async (bundleId: number) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('bundles')
+        .select(`
+          *,
+          klasters (
+            *,
+            indikators (
+              *,
+              scoring_indikators (*),
+              target_achievement_indikators (*)
+            )
+          )
+        `)
+        .eq('id', bundleId)
+        .single();
+
+      if (error) throw error;
+
+      // Transform database data to local format
+      const transformedBundle: BundlePKP = {
+        id: data.id,
+        tahun: data.tahun,
+        judul: data.judul,
+        status: data.status,
+        deskripsi: data.deskripsi,
+        klaster: data.klasters?.map((k: any) => ({
+          id: k.id,
+          nama_klaster: k.nama_klaster,
+          indikator: k.indikators?.map((i: any) => {
+            if (i.type === 'scoring') {
+              return {
+                id: i.id,
+                nama_indikator: i.nama_indikator,
+                definisi_operasional: i.definisi_operasional,
+                type: 'scoring' as const,
+                skor: {
+                  0: i.scoring_indikators?.[0]?.skor_0 || '',
+                  4: i.scoring_indikators?.[0]?.skor_4 || '',
+                  7: i.scoring_indikators?.[0]?.skor_7 || '',
+                  10: i.scoring_indikators?.[0]?.skor_10 || ''
+                }
+              };
+            } else {
+              return {
+                id: i.id,
+                nama_indikator: i.nama_indikator,
+                definisi_operasional: i.definisi_operasional,
+                type: 'target_achievement' as const,
+                target_info: {
+                  target_percentage: i.target_achievement_indikators?.[0]?.target_percentage || 80,
+                  total_sasaran: i.target_achievement_indikators?.[0]?.total_sasaran || 100,
+                  satuan: i.target_achievement_indikators?.[0]?.satuan || 'unit',
+                  periodicity: i.target_achievement_indikators?.[0]?.periodicity || 'annual'
+                }
+              };
+            }
+          }) || []
+        })) || []
+      };
+
+      setSelectedBundle(transformedBundle);
+    } catch (error) {
+      console.error('Error loading bundle details:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat detail bundle",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createNewBundle = () => {
+    const currentYear = new Date().getFullYear();
+    const newBundle: BundlePKP = {
+      tahun: currentYear + 1,
+      judul: `Bundle PKP ${currentYear + 1}`,
+      status: 'draft',
+      deskripsi: '',
+      klaster: [],
+      isNew: true
+    };
+    setSelectedBundle(newBundle);
+  };
+
   const addKlaster = () => {
-    const newKlaster: Klaster = {
+    if (!selectedBundle) return;
+    
+    const newKlaster: KlasterLocal = {
       id: Date.now(),
       nama_klaster: 'Klaster Baru',
-      indikator: []
+      indikator: [],
+      isNew: true
     };
-    setBundle(prev => ({
-      ...prev,
-      klaster: [...prev.klaster, newKlaster]
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: [...prev!.klaster, newKlaster]
     }));
   };
 
   const addIndikator = (klasterId: number, type: 'scoring' | 'target_achievement') => {
-    let newIndikator: Indikator;
+    if (!selectedBundle) return;
+
+    let newIndikator: IndikatorLocal;
     
     if (type === 'scoring') {
       newIndikator = {
@@ -134,9 +255,9 @@ const BundleBuilder = () => {
       };
     }
 
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId 
           ? { ...k, indikator: [...k.indikator, newIndikator] }
           : k
@@ -145,16 +266,20 @@ const BundleBuilder = () => {
   };
 
   const deleteKlaster = (klasterId: number) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.filter(k => k.id !== klasterId)
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.filter(k => k.id !== klasterId)
     }));
   };
 
   const deleteIndikator = (klasterId: number, indikatorId: number) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId 
           ? { ...k, indikator: k.indikator.filter(i => i.id !== indikatorId) }
           : k
@@ -163,18 +288,22 @@ const BundleBuilder = () => {
   };
 
   const updateKlasterName = (klasterId: number, nama: string) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId ? { ...k, nama_klaster: nama } : k
       )
     }));
   };
 
   const updateIndikator = (klasterId: number, indikatorId: number, field: string, value: any) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId 
           ? {
               ...k, 
@@ -188,9 +317,11 @@ const BundleBuilder = () => {
   };
 
   const updateTargetInfo = (klasterId: number, indikatorId: number, field: string, value: any) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId 
           ? {
               ...k, 
@@ -206,9 +337,11 @@ const BundleBuilder = () => {
   };
 
   const updateSkor = (klasterId: number, indikatorId: number, skorKey: string, value: string) => {
-    setBundle(prev => ({
-      ...prev,
-      klaster: prev.klaster.map(k => 
+    if (!selectedBundle) return;
+    
+    setSelectedBundle(prev => ({
+      ...prev!,
+      klaster: prev!.klaster.map(k => 
         k.id === klasterId 
           ? {
               ...k, 
@@ -223,21 +356,247 @@ const BundleBuilder = () => {
     }));
   };
 
-  const saveBundle = () => {
-    toast({
-      title: "Bundle berhasil disimpan",
-      description: `Bundle PKP ${bundle.tahun} telah disimpan`
-    });
+  const saveBundle = async () => {
+    if (!selectedBundle) return;
+
+    setSaving(true);
+    try {
+      // Validate bundle data
+      if (!selectedBundle.judul.trim()) {
+        throw new Error('Judul bundle harus diisi');
+      }
+
+      if (selectedBundle.klaster.length === 0) {
+        throw new Error('Bundle harus memiliki minimal 1 klaster');
+      }
+
+      // Check if year already exists (for new bundles)
+      if (selectedBundle.isNew) {
+        const { data: existingBundle } = await supabase
+          .from('bundles')
+          .select('id')
+          .eq('tahun', selectedBundle.tahun)
+          .single();
+
+        if (existingBundle) {
+          throw new Error(`Bundle untuk tahun ${selectedBundle.tahun} sudah ada`);
+        }
+      }
+
+      let bundleId = selectedBundle.id;
+
+      // Save or update bundle
+      if (selectedBundle.isNew) {
+        const bundleData: BundleInsert = {
+          tahun: selectedBundle.tahun,
+          judul: selectedBundle.judul,
+          status: selectedBundle.status,
+          deskripsi: selectedBundle.deskripsi || null
+        };
+
+        const { data: newBundle, error: bundleError } = await supabase
+          .from('bundles')
+          .insert(bundleData)
+          .select()
+          .single();
+
+        if (bundleError) throw bundleError;
+        bundleId = newBundle.id;
+      } else {
+        const { error: updateError } = await supabase
+          .from('bundles')
+          .update({
+            judul: selectedBundle.judul,
+            status: selectedBundle.status,
+            deskripsi: selectedBundle.deskripsi || null
+          })
+          .eq('id', bundleId);
+
+        if (updateError) throw updateError;
+      }
+
+      // Save klasters and indikators
+      for (const klaster of selectedBundle.klaster) {
+        let klasterId = klaster.id;
+
+        if (klaster.isNew || klaster.id > 1000000) { // New klaster (using timestamp as temp ID)
+          const klasterData: KlasterInsert = {
+            bundle_id: bundleId!,
+            nama_klaster: klaster.nama_klaster,
+            urutan: selectedBundle.klaster.indexOf(klaster) + 1
+          };
+
+          const { data: newKlaster, error: klasterError } = await supabase
+            .from('klasters')
+            .insert(klasterData)
+            .select()
+            .single();
+
+          if (klasterError) throw klasterError;
+          klasterId = newKlaster.id;
+        } else {
+          // Update existing klaster
+          const { error: updateError } = await supabase
+            .from('klasters')
+            .update({
+              nama_klaster: klaster.nama_klaster,
+              urutan: selectedBundle.klaster.indexOf(klaster) + 1
+            })
+            .eq('id', klasterId);
+
+          if (updateError) throw updateError;
+        }
+
+        // Save indikators
+        for (const indikator of klaster.indikator) {
+          let indikatorId = indikator.id;
+
+          if (indikator.id > 1000000) { // New indikator (using timestamp as temp ID)
+            const indikatorData: IndikatorInsert = {
+              klaster_id: klasterId,
+              nama_indikator: indikator.nama_indikator,
+              definisi_operasional: indikator.definisi_operasional,
+              type: indikator.type,
+              urutan: klaster.indikator.indexOf(indikator) + 1
+            };
+
+            const { data: newIndikator, error: indikatorError } = await supabase
+              .from('indikators')
+              .insert(indikatorData)
+              .select()
+              .single();
+
+            if (indikatorError) throw indikatorError;
+            indikatorId = newIndikator.id;
+
+            // Save indikator details
+            if (indikator.type === 'scoring') {
+              const scoringData: ScoringIndikatorInsert = {
+                indikator_id: indikatorId,
+                skor_0: indikator.skor[0],
+                skor_4: indikator.skor[4],
+                skor_7: indikator.skor[7],
+                skor_10: indikator.skor[10]
+              };
+
+              const { error: scoringError } = await supabase
+                .from('scoring_indikators')
+                .insert(scoringData);
+
+              if (scoringError) throw scoringError;
+            } else {
+              const targetData: TargetAchievementIndikatorInsert = {
+                indikator_id: indikatorId,
+                target_percentage: indikator.target_info.target_percentage,
+                total_sasaran: indikator.target_info.total_sasaran,
+                satuan: indikator.target_info.satuan,
+                periodicity: indikator.target_info.periodicity
+              };
+
+              const { error: targetError } = await supabase
+                .from('target_achievement_indikators')
+                .insert(targetData);
+
+              if (targetError) throw targetError;
+            }
+          } else {
+            // Update existing indikator
+            const { error: updateError } = await supabase
+              .from('indikators')
+              .update({
+                nama_indikator: indikator.nama_indikator,
+                definisi_operasional: indikator.definisi_operasional,
+                urutan: klaster.indikator.indexOf(indikator) + 1
+              })
+              .eq('id', indikatorId);
+
+            if (updateError) throw updateError;
+
+            // Update indikator details
+            if (indikator.type === 'scoring') {
+              const { error: scoringError } = await supabase
+                .from('scoring_indikators')
+                .update({
+                  skor_0: indikator.skor[0],
+                  skor_4: indikator.skor[4],
+                  skor_7: indikator.skor[7],
+                  skor_10: indikator.skor[10]
+                })
+                .eq('indikator_id', indikatorId);
+
+              if (scoringError) throw scoringError;
+            } else {
+              const { error: targetError } = await supabase
+                .from('target_achievement_indikators')
+                .update({
+                  target_percentage: indikator.target_info.target_percentage,
+                  total_sasaran: indikator.target_info.total_sasaran,
+                  satuan: indikator.target_info.satuan,
+                  periodicity: indikator.target_info.periodicity
+                })
+                .eq('indikator_id', indikatorId);
+
+              if (targetError) throw targetError;
+            }
+          }
+        }
+      }
+
+      toast({
+        title: "Berhasil!",
+        description: `Bundle PKP ${selectedBundle.tahun} telah disimpan`,
+      });
+
+      // Reload bundles and clear selection
+      await loadBundles();
+      setSelectedBundle(null);
+
+    } catch (error: any) {
+      console.error('Error saving bundle:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyimpan bundle",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const previewBundle = () => {
-    toast({
-      title: "Preview Bundle",
-      description: "Menampilkan preview bundle..."
-    });
+  const activateBundle = async (bundleId: number) => {
+    try {
+      // First, deactivate all other bundles
+      await supabase
+        .from('bundles')
+        .update({ status: 'completed' })
+        .neq('id', bundleId)
+        .eq('status', 'active');
+
+      // Then activate the selected bundle
+      const { error } = await supabase
+        .from('bundles')
+        .update({ status: 'active' })
+        .eq('id', bundleId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Bundle Diaktifkan",
+        description: "Bundle berhasil diaktifkan dan bundle lain telah dinonaktifkan",
+      });
+
+      await loadBundles();
+    } catch (error) {
+      console.error('Error activating bundle:', error);
+      toast({
+        title: "Error",
+        description: "Gagal mengaktifkan bundle",
+        variant: "destructive"
+      });
+    }
   };
 
-  const renderIndikatorForm = (klaster: Klaster, indikator: Indikator) => {
+  const renderIndikatorForm = (klaster: KlasterLocal, indikator: IndikatorLocal) => {
     return (
       <div key={indikator.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
         <div className="flex items-start justify-between mb-3">
@@ -282,9 +641,9 @@ const BundleBuilder = () => {
                         10: 'Memenuhi seluruh kriteria'
                       }
                     };
-                    setBundle(prev => ({
-                      ...prev,
-                      klaster: prev.klaster.map(k => 
+                    setSelectedBundle(prev => ({
+                      ...prev!,
+                      klaster: prev!.klaster.map(k => 
                         k.id === klaster.id 
                           ? { ...k, indikator: k.indikator.map(i => i.id === indikator.id ? newIndikator : i) }
                           : k
@@ -303,9 +662,9 @@ const BundleBuilder = () => {
                         periodicity: 'annual'
                       }
                     };
-                    setBundle(prev => ({
-                      ...prev,
-                      klaster: prev.klaster.map(k => 
+                    setSelectedBundle(prev => ({
+                      ...prev!,
+                      klaster: prev!.klaster.map(k => 
                         k.id === klaster.id 
                           ? { ...k, indikator: k.indikator.map(i => i.id === indikator.id ? newIndikator : i) }
                           : k
@@ -468,54 +827,248 @@ const BundleBuilder = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-2 text-gray-600">Memuat data...</span>
+      </div>
+    );
+  }
+
+  if (!selectedBundle) {
+    return (
+      <div className="space-y-6">
+        {/* Bundle List Header */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
+                  <FolderPlus className="w-6 h-6 mr-2 text-blue-600" />
+                  Management Bundle PKP
+                </CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Kelola bundle penilaian kinerja puskesmas
+                </p>
+              </div>
+              <Button 
+                onClick={createNewBundle}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Buat Bundle Baru
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Bundle List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {bundles.map((bundle) => (
+            <Card key={bundle.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800">
+                      {bundle.judul}
+                    </CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">Tahun {bundle.tahun}</p>
+                    {bundle.deskripsi && (
+                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                        {bundle.deskripsi}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end space-y-2">
+                    <Badge 
+                      variant={bundle.status === 'active' ? 'default' : bundle.status === 'draft' ? 'secondary' : 'outline'}
+                      className={
+                        bundle.status === 'active' 
+                          ? 'bg-green-100 text-green-700' 
+                          : bundle.status === 'draft'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }
+                    >
+                      {bundle.status === 'active' && <CheckCircle className="w-3 h-3 mr-1" />}
+                      {bundle.status === 'draft' && <AlertCircle className="w-3 h-3 mr-1" />}
+                      {bundle.status === 'active' ? 'Aktif' : bundle.status === 'draft' ? 'Draft' : 'Selesai'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center text-sm text-gray-600">
+                  <span>Dibuat: {new Date(bundle.created_at).toLocaleDateString('id-ID')}</span>
+                  <span>Diupdate: {new Date(bundle.updated_at).toLocaleDateString('id-ID')}</span>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => loadBundleDetails(bundle.id)}
+                    className="flex-1"
+                  >
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  {bundle.status !== 'active' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Aktifkan
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Aktifkan Bundle</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Apakah Anda yakin ingin mengaktifkan bundle "{bundle.judul}"? 
+                            Bundle yang sedang aktif akan dinonaktifkan.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => activateBundle(bundle.id)}>
+                            Ya, Aktifkan
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {bundles.length === 0 && (
+          <Card className="shadow-lg">
+            <CardContent className="text-center py-12">
+              <FolderPlus className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">Belum Ada Bundle</h3>
+              <p className="text-gray-500 mb-4">Mulai dengan membuat bundle PKP pertama Anda</p>
+              <Button 
+                onClick={createNewBundle}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Buat Bundle Baru
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Bundle Header */}
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-800 flex items-center">
-            <FolderPlus className="w-6 h-6 mr-2 text-blue-600" />
-            Bundle Builder PKP
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold text-gray-800 flex items-center">
+                <FolderPlus className="w-6 h-6 mr-2 text-blue-600" />
+                {selectedBundle.isNew ? 'Buat Bundle Baru' : `Edit Bundle: ${selectedBundle.judul}`}
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedBundle.isNew ? 'Buat bundle PKP baru dengan klaster dan indikator' : 'Edit bundle PKP yang sudah ada'}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedBundle(null)}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Kembali
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="tahun">Tahun</Label>
               <Input
                 id="tahun"
                 type="number"
-                value={bundle.tahun}
-                onChange={(e) => setBundle(prev => ({ ...prev, tahun: parseInt(e.target.value) }))}
+                value={selectedBundle.tahun}
+                onChange={(e) => setSelectedBundle(prev => ({ ...prev!, tahun: parseInt(e.target.value) }))}
+                disabled={!selectedBundle.isNew}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="judul">Judul Bundle</Label>
               <Input
                 id="judul"
-                value={bundle.judul}
-                onChange={(e) => setBundle(prev => ({ ...prev, judul: e.target.value }))}
+                value={selectedBundle.judul}
+                onChange={(e) => setSelectedBundle(prev => ({ ...prev!, judul: e.target.value }))}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={selectedBundle.status}
+                onValueChange={(value: 'draft' | 'active' | 'completed') => 
+                  setSelectedBundle(prev => ({ ...prev!, status: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="completed">Selesai</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="deskripsi">Deskripsi (Opsional)</Label>
+            <Textarea
+              id="deskripsi"
+              value={selectedBundle.deskripsi || ''}
+              onChange={(e) => setSelectedBundle(prev => ({ ...prev!, deskripsi: e.target.value }))}
+              placeholder="Deskripsi bundle..."
+            />
           </div>
           
           <div className="flex justify-between items-center pt-4">
             <div className="flex space-x-2">
               <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                {bundle.klaster.length} Klaster
+                {selectedBundle.klaster.length} Klaster
               </Badge>
               <Badge variant="outline" className="bg-green-50 text-green-700">
-                {bundle.klaster.reduce((total, k) => total + k.indikator.length, 0)} Indikator
+                {selectedBundle.klaster.reduce((total, k) => total + k.indikator.length, 0)} Indikator
               </Badge>
             </div>
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={previewBundle}>
-                <Eye className="w-4 h-4 mr-2" />
-                Preview
-              </Button>
-              <Button onClick={saveBundle} className="bg-gradient-to-r from-blue-600 to-purple-600">
-                <Save className="w-4 h-4 mr-2" />
-                Simpan Bundle
+              <Button 
+                onClick={saveBundle} 
+                disabled={saving}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Simpan Bundle
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -524,7 +1077,7 @@ const BundleBuilder = () => {
 
       {/* Klaster Builder */}
       <div className="space-y-4">
-        {bundle.klaster.map((klaster) => (
+        {selectedBundle.klaster.map((klaster) => (
           <Card key={klaster.id} className="shadow-lg">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
