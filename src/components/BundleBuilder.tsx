@@ -104,13 +104,21 @@ const BundleBuilder = () => {
         .select('*')
         .order('tahun', { ascending: false });
 
-      if (error) throw error;
-      setBundles(data || []);
+      if (error) {
+        console.error('Error loading bundles:', error);
+        toast({
+          title: "Error",
+          description: "Gagal memuat data bundle: " + error.message,
+          variant: "destructive"
+        });
+      } else {
+        setBundles(data || []);
+      }
     } catch (error) {
-      console.error('Error loading bundles:', error);
+      console.error('Unexpected error loading bundles:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat data bundle",
+        description: "Terjadi kesalahan tidak terduga saat memuat bundle",
         variant: "destructive"
       });
     } finally {
@@ -137,7 +145,15 @@ const BundleBuilder = () => {
         .eq('id', bundleId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading bundle details:', error);
+        toast({
+          title: "Error",
+          description: "Gagal memuat detail bundle: " + error.message,
+          variant: "destructive"
+        });
+        return;
+      }
 
       // Transform database data to local format
       const transformedBundle: BundlePKP = {
@@ -183,10 +199,10 @@ const BundleBuilder = () => {
 
       setSelectedBundle(transformedBundle);
     } catch (error) {
-      console.error('Error loading bundle details:', error);
+      console.error('Unexpected error loading bundle details:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat detail bundle",
+        description: "Terjadi kesalahan tidak terduga saat memuat detail bundle",
         variant: "destructive"
       });
     } finally {
@@ -373,14 +389,26 @@ const BundleBuilder = () => {
 
       // Check if year already exists (for new bundles)
       if (selectedBundle.isNew) {
-        const { data: existingBundle } = await supabase
-          .from('bundles')
-          .select('id')
-          .eq('tahun', selectedBundle.tahun)
-          .single();
+        try {
+          const { data: existingBundle, error: checkError } = await supabase
+            .from('bundles')
+            .select('id')
+            .eq('tahun', selectedBundle.tahun)
+            .maybeSingle();
 
-        if (existingBundle) {
-          throw new Error(`Bundle untuk tahun ${selectedBundle.tahun} sudah ada`);
+          // Only throw error if there's a real database error, not if no rows found
+          if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+          }
+
+          if (existingBundle) {
+            throw new Error(`Bundle untuk tahun ${selectedBundle.tahun} sudah ada`);
+          }
+        } catch (error: any) {
+          if (error.message.includes('sudah ada')) {
+            throw error;
+          }
+          // Continue if it's just a "no rows found" error
         }
       }
 
@@ -587,11 +615,11 @@ const BundleBuilder = () => {
       });
 
       await loadBundles();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error activating bundle:', error);
       toast({
         title: "Error",
-        description: "Gagal mengaktifkan bundle",
+        description: "Gagal mengaktifkan bundle: " + error.message,
         variant: "destructive"
       });
     }

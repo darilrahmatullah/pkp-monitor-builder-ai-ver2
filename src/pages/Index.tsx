@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
@@ -10,16 +10,24 @@ import RekapSkor from '@/components/RekapSkor';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
-import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award } from 'lucide-react';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award, LogOut } from 'lucide-react';
 
-const Index = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [userRole, setUserRole] = useState<'puskesmas' | 'dinkes'>('puskesmas');
-
-  const handleRoleToggle = (checked: boolean) => {
-    setUserRole(checked ? 'dinkes' : 'puskesmas');
-    setActiveTab('dashboard');
+interface IndexProps {
+  userProfile?: {
+    id: string;
+    email: string;
+    role: 'puskesmas' | 'dinkes';
+    nama: string;
+    puskesmas_id: number | null;
   };
+  onSignOut?: () => void;
+}
+
+const Index: React.FC<IndexProps> = ({ userProfile, onSignOut }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Use userProfile role if available, otherwise default to puskesmas
+  const userRole = userProfile?.role || 'puskesmas';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
@@ -37,20 +45,12 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Role Toggle */}
-              <div className="flex items-center space-x-3 bg-gray-50 p-2 rounded-lg">
-                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
-                  Puskesmas
-                </Label>
-                <Switch
-                  id="role-toggle"
-                  checked={userRole === 'dinkes'}
-                  onCheckedChange={handleRoleToggle}
-                />
-                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
-                  Dinkes (Admin)
-                </Label>
-              </div>
+              {userProfile && (
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">{userProfile.nama}</p>
+                  <p className="text-xs text-gray-500">{userProfile.email}</p>
+                </div>
+              )}
               
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 Tahun 2024
@@ -61,6 +61,13 @@ const Index = () => {
                 {userRole === 'puskesmas' ? 'Puskesmas' : 'Dinkes (Admin)'}
                 {userRole === 'dinkes' && <Shield className="w-3 h-3 ml-1" />}
               </Badge>
+
+              {onSignOut && (
+                <Button variant="outline" size="sm" onClick={onSignOut}>
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Logout
+                </Button>
+              )}
             </div>
           </div>
         </div>
