@@ -2,42 +2,23 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
 import RekapSkor from '@/components/RekapSkor';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
-import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award, LogOut, User, ChevronDown } from 'lucide-react';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award } from 'lucide-react';
 
-interface IndexProps {
-  userProfile?: {
-    id: string;
-    email: string;
-    role: 'puskesmas' | 'dinkes';
-    nama: string;
-    puskesmas_id: number | null;
-  };
-  onSignOut?: () => void;
-}
-
-const Index: React.FC<IndexProps> = ({ userProfile, onSignOut }) => {
+const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  
-  // Use userProfile role if available, otherwise default to puskesmas
-  const userRole = userProfile?.role || 'puskesmas';
+  const [userRole, setUserRole] = useState<'puskesmas' | 'dinkes'>('puskesmas');
 
-  // Get user initials for avatar
-  const getUserInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const handleRoleToggle = (checked: boolean) => {
+    setUserRole(checked ? 'dinkes' : 'puskesmas');
+    setActiveTab('dashboard');
   };
 
   return (
@@ -55,73 +36,31 @@ const Index: React.FC<IndexProps> = ({ userProfile, onSignOut }) => {
                 <p className="text-sm text-gray-500">Penilaian Kinerja Puskesmas</p>
               </div>
             </div>
-            
             <div className="flex items-center space-x-4">
+              {/* Role Toggle */}
+              <div className="flex items-center space-x-3 bg-gray-50 p-2 rounded-lg">
+                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
+                  Puskesmas
+                </Label>
+                <Switch
+                  id="role-toggle"
+                  checked={userRole === 'dinkes'}
+                  onCheckedChange={handleRoleToggle}
+                />
+                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
+                  Dinkes (Admin)
+                </Label>
+              </div>
+              
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 Tahun 2024
               </Badge>
-              
               <Badge variant="secondary" className={`${
                 userRole === 'dinkes' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
               }`}>
                 {userRole === 'puskesmas' ? 'Puskesmas' : 'Dinkes (Admin)'}
                 {userRole === 'dinkes' && <Shield className="w-3 h-3 ml-1" />}
               </Badge>
-
-              {/* User Profile Dropdown */}
-              {userProfile && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src="" alt={userProfile.nama} />
-                        <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium">
-                          {getUserInitials(userProfile.nama)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="hidden md:block text-left">
-                        <p className="text-sm font-medium text-gray-900">{userProfile.nama}</p>
-                        <p className="text-xs text-gray-500">{userProfile.email}</p>
-                      </div>
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userProfile.nama}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{userProfile.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-gray-600">
-                      <User className="w-4 h-4 mr-2" />
-                      Role: {userRole === 'puskesmas' ? 'Puskesmas' : 'Admin Dinkes'}
-                    </DropdownMenuItem>
-                    {userProfile.puskesmas_id && (
-                      <DropdownMenuItem className="text-gray-600">
-                        <Settings className="w-4 h-4 mr-2" />
-                        ID Puskesmas: {userProfile.puskesmas_id}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    {onSignOut && (
-                      <DropdownMenuItem onClick={onSignOut} className="text-red-600 focus:text-red-600">
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Logout
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
-              {/* Fallback logout button if no dropdown */}
-              {!userProfile && onSignOut && (
-                <Button variant="outline" size="sm" onClick={onSignOut}>
-                  <LogOut className="w-4 h-4 mr-1" />
-                  Logout
-                </Button>
-              )}
             </div>
           </div>
         </div>

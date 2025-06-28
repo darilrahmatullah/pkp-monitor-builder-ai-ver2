@@ -1,59 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
-// Fallback values for development
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-placeholder.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-placeholder-key'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Check if we have valid Supabase credentials
-const hasValidCredentials = supabaseUrl !== 'https://demo-placeholder.supabase.co' && 
-                           supabaseAnonKey !== 'demo-placeholder-key' &&
-                           supabaseUrl.includes('.supabase.co') &&
-                           !supabaseUrl.includes('your-project-ref') &&
-                           !supabaseAnonKey.includes('your-anon-key') &&
-                           !supabaseAnonKey.includes('placeholder')
-
-if (!hasValidCredentials) {
-  console.warn('⚠️ Supabase credentials not configured properly. Using demo mode.')
-  console.warn('Required variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY')
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  db: {
-    schema: 'public'
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'pkp-monitor'
-    }
-  }
-})
-
-// Helper function to check if Supabase is properly configured
-export function isSupabaseConfigured(): boolean {
-  return hasValidCredentials
-}
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Helper function to handle Supabase errors
 export function handleSupabaseError(error: any) {
   console.error('Supabase error:', error)
-  
-  // Check for common connection issues
-  if (error?.message?.includes('fetch')) {
-    return {
-      message: 'Tidak dapat terhubung ke database. Periksa koneksi internet atau konfigurasi Supabase.',
-      details: error?.details || null,
-      hint: 'Pastikan VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY sudah dikonfigurasi dengan benar',
-      code: error?.code || 'CONNECTION_ERROR'
-    }
-  }
-  
   return {
-    message: error?.message || 'Terjadi kesalahan yang tidak terduga',
+    message: error?.message || 'An unexpected error occurred',
     details: error?.details || null,
     hint: error?.hint || null,
     code: error?.code || null
@@ -65,17 +26,6 @@ export async function executeQuery<T>(
   queryPromise: Promise<{ data: T | null; error: any }>
 ): Promise<{ data: T | null; error: any }> {
   try {
-    // Check if Supabase is configured before making queries
-    if (!hasValidCredentials) {
-      return {
-        data: null,
-        error: {
-          message: 'Supabase belum dikonfigurasi. Silakan setup environment variables terlebih dahulu.',
-          code: 'SUPABASE_NOT_CONFIGURED'
-        }
-      }
-    }
-
     const result = await queryPromise
     if (result.error) {
       console.error('Query error:', result.error)
@@ -87,35 +37,5 @@ export async function executeQuery<T>(
       data: null,
       error: handleSupabaseError(error)
     }
-  }
-}
-
-// Test connection function with better error handling
-export async function testSupabaseConnection(): Promise<boolean> {
-  try {
-    if (!hasValidCredentials) {
-      console.log('Supabase not configured, skipping connection test')
-      return false
-    }
-    
-    // Add timeout to prevent hanging
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Connection timeout')), 5000)
-    })
-    
-    const connectionPromise = supabase.from('puskesmas').select('count').limit(1)
-    
-    const { data, error } = await Promise.race([connectionPromise, timeoutPromise])
-    
-    if (error) {
-      console.warn('Supabase connection test failed:', error.message)
-      return false
-    }
-    
-    console.log('Supabase connection successful')
-    return true
-  } catch (error: any) {
-    console.warn('Supabase connection test failed:', error?.message || 'Unknown error')
-    return false
   }
 }
