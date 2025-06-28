@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, LogIn, UserPlus, AlertTriangle, Database } from 'lucide-react';
+import { Loader2, LogIn, UserPlus, AlertTriangle, Database, Shield, User } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { User } from '@supabase/supabase-js';
 
@@ -186,40 +186,40 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   };
 
   const enterDemoMode = () => {
-    // Create a mock user profile for demo
+    // Create a mock user profile for demo PUSKESMAS
     const demoProfile: UserProfile = {
-      id: 'demo-user',
+      id: 'demo-user-puskesmas',
       email: 'demo@puskesmas.com',
-      role: 'puskesmas',
+      role: 'puskesmas', // PUSKESMAS role
       nama: 'Demo User Puskesmas',
       puskesmas_id: 1
     };
     
     setUserProfile(demoProfile);
-    setUser({ id: 'demo-user', email: 'demo@puskesmas.com' } as User);
+    setUser({ id: 'demo-user-puskesmas', email: 'demo@puskesmas.com' } as User);
     
     toast({
-      title: "Mode Demo Aktif",
-      description: "Anda sedang menggunakan mode demo. Data tidak akan tersimpan.",
+      title: "Mode Demo Puskesmas Aktif",
+      description: "Anda sedang menggunakan mode demo sebagai Puskesmas. Data tidak akan tersimpan.",
     });
   };
 
   const enterDemoModeAdmin = () => {
-    // Create a mock admin profile for demo
+    // Create a mock admin profile for demo DINKES
     const demoProfile: UserProfile = {
-      id: 'demo-admin',
+      id: 'demo-admin-dinkes',
       email: 'admin@dinkes.com',
-      role: 'dinkes',
+      role: 'dinkes', // DINKES role (admin)
       nama: 'Demo Admin Dinkes',
       puskesmas_id: null
     };
     
     setUserProfile(demoProfile);
-    setUser({ id: 'demo-admin', email: 'admin@dinkes.com' } as User);
+    setUser({ id: 'demo-admin-dinkes', email: 'admin@dinkes.com' } as User);
     
     toast({
-      title: "Mode Demo Admin Aktif",
-      description: "Anda sedang menggunakan mode demo admin. Data tidak akan tersimpan.",
+      title: "Mode Demo Admin Dinkes Aktif",
+      description: "Anda sedang menggunakan mode demo sebagai Admin Dinkes. Data tidak akan tersimpan.",
     });
   };
 
@@ -252,13 +252,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               </AlertDescription>
             </Alert>
 
-            <div className="space-y-2">
-              <Button onClick={enterDemoMode} className="w-full" size="lg">
-                <UserPlus className="w-4 h-4 mr-2" />
+            <div className="space-y-3">
+              <Button onClick={enterDemoMode} className="w-full bg-green-600 hover:bg-green-700" size="lg">
+                <User className="w-4 h-4 mr-2" />
                 Demo Mode (Puskesmas)
               </Button>
-              <Button onClick={enterDemoModeAdmin} className="w-full" size="lg" variant="outline">
-                <UserPlus className="w-4 h-4 mr-2" />
+              <Button onClick={enterDemoModeAdmin} className="w-full bg-purple-600 hover:bg-purple-700" size="lg">
+                <Shield className="w-4 h-4 mr-2" />
                 Demo Mode (Admin Dinkes)
               </Button>
             </div>
@@ -298,13 +298,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
                   </AlertDescription>
                 </Alert>
                 
-                <div className="space-y-2">
-                  <Button onClick={enterDemoMode} className="w-full" size="lg">
-                    <UserPlus className="w-4 h-4 mr-2" />
+                <div className="space-y-3">
+                  <Button onClick={enterDemoMode} className="w-full bg-green-600 hover:bg-green-700" size="lg">
+                    <User className="w-4 h-4 mr-2" />
                     Demo Puskesmas
                   </Button>
-                  <Button onClick={enterDemoModeAdmin} className="w-full" size="lg" variant="outline">
-                    <UserPlus className="w-4 h-4 mr-2" />
+                  <Button onClick={enterDemoModeAdmin} className="w-full bg-purple-600 hover:bg-purple-700" size="lg">
+                    <Shield className="w-4 h-4 mr-2" />
                     Demo Admin Dinkes
                   </Button>
                 </div>
@@ -408,7 +408,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   }
 
   // If user is logged in but no profile, show profile creation
-  if (!userProfile && user.id !== 'demo-user' && user.id !== 'demo-admin') {
+  if (!userProfile && user.id !== 'demo-user-puskesmas' && user.id !== 'demo-admin-dinkes') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
         <Card className="w-full max-w-md shadow-xl">
