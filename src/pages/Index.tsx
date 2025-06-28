@@ -2,23 +2,42 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Dashboard from '@/components/Dashboard';
 import PenilaianForm from '@/components/PenilaianForm';
 import RekapSkor from '@/components/RekapSkor';
 import VerifikasiPanel from '@/components/VerifikasiPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import BundleBuilder from '@/components/BundleBuilder';
-import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award } from 'lucide-react';
+import { BarChart3, FileText, CheckCircle, Users, Settings, Shield, Award, LogOut, User, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [userRole, setUserRole] = useState<'puskesmas' | 'dinkes'>('puskesmas');
+  
+  // For demo purposes, we'll determine role based on email or default to puskesmas
+  const userRole = user?.email?.includes('dinkes') ? 'dinkes' : 'puskesmas';
+  const userName = user?.user_metadata?.nama || user?.email?.split('@')[0] || 'User';
 
-  const handleRoleToggle = (checked: boolean) => {
-    setUserRole(checked ? 'dinkes' : 'puskesmas');
-    setActiveTab('dashboard');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Logout berhasil",
+        description: "Anda telah keluar dari sistem",
+      });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast({
+        title: "Error",
+        description: "Gagal logout",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -37,21 +56,6 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Role Toggle */}
-              <div className="flex items-center space-x-3 bg-gray-50 p-2 rounded-lg">
-                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
-                  Puskesmas
-                </Label>
-                <Switch
-                  id="role-toggle"
-                  checked={userRole === 'dinkes'}
-                  onCheckedChange={handleRoleToggle}
-                />
-                <Label htmlFor="role-toggle" className="text-sm font-medium text-gray-700">
-                  Dinkes (Admin)
-                </Label>
-              </div>
-              
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 Tahun 2024
               </Badge>
@@ -61,6 +65,40 @@ const Index = () => {
                 {userRole === 'puskesmas' ? 'Puskesmas' : 'Dinkes (Admin)'}
                 {userRole === 'dinkes' && <Shield className="w-3 h-3 ml-1" />}
               </Badge>
+              
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm">
+                        {userName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:block text-sm font-medium text-gray-700">{userName}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-medium text-gray-900">{userName}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="w-4 h-4 mr-2" />
+                    Profil
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Keluar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
