@@ -145,6 +145,8 @@ const BundleBuilder = () => {
         throw error;
       }
 
+      console.log('Raw bundle data from database:', data);
+
       // Transform database data to local format
       const transformedBundle: BundlePKP = {
         id: data.id,
@@ -157,29 +159,33 @@ const BundleBuilder = () => {
           nama_klaster: k.nama_klaster,
           indikator: k.indikators?.map((i: any) => {
             if (i.type === 'scoring') {
+              const scoringData = i.scoring_indikators?.[0];
+              console.log('Loading scoring data for indikator:', i.nama_indikator, scoringData);
+              
               return {
                 id: i.id,
                 nama_indikator: i.nama_indikator,
                 definisi_operasional: i.definisi_operasional,
                 type: 'scoring' as const,
                 skor: {
-                  0: i.scoring_indikators?.[0]?.skor_0 || '',
-                  4: i.scoring_indikators?.[0]?.skor_4 || '',
-                  7: i.scoring_indikators?.[0]?.skor_7 || '',
-                  10: i.scoring_indikators?.[0]?.skor_10 || ''
+                  0: scoringData?.skor_0 || 'Tidak memenuhi kriteria',
+                  4: scoringData?.skor_4 || 'Memenuhi sebagian kecil kriteria',
+                  7: scoringData?.skor_7 || 'Memenuhi sebagian besar kriteria',
+                  10: scoringData?.skor_10 || 'Memenuhi seluruh kriteria'
                 }
               };
             } else {
+              const targetData = i.target_achievement_indikators?.[0];
               return {
                 id: i.id,
                 nama_indikator: i.nama_indikator,
                 definisi_operasional: i.definisi_operasional,
                 type: 'target_achievement' as const,
                 target_info: {
-                  target_percentage: i.target_achievement_indikators?.[0]?.target_percentage || 80,
-                  total_sasaran: i.target_achievement_indikators?.[0]?.total_sasaran || 100,
-                  satuan: i.target_achievement_indikators?.[0]?.satuan || 'unit',
-                  periodicity: i.target_achievement_indikators?.[0]?.periodicity || 'annual'
+                  target_percentage: targetData?.target_percentage || 80,
+                  total_sasaran: targetData?.total_sasaran || 100,
+                  satuan: targetData?.satuan || 'unit',
+                  periodicity: targetData?.periodicity || 'annual'
                 }
               };
             }
@@ -187,6 +193,7 @@ const BundleBuilder = () => {
         })) || []
       };
 
+      console.log('Transformed bundle data:', transformedBundle);
       setSelectedBundle(transformedBundle);
     } catch (error) {
       console.error('Error loading bundle details:', error);
