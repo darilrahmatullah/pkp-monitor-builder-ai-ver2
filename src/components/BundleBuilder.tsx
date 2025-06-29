@@ -88,6 +88,7 @@ const BundleBuilder = () => {
   const [selectedBundle, setSelectedBundle] = useState<BundlePKP | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingIndikator, setSavingIndikator] = useState<number | null>(null);
   const [editingKlaster, setEditingKlaster] = useState<number | null>(null);
   const [editingIndikator, setEditingIndikator] = useState<number | null>(null);
 
@@ -387,6 +388,168 @@ const BundleBuilder = () => {
       console.log('New bundle state after skor update:', newBundle);
       return newBundle;
     });
+  };
+
+  // New function to save individual indikator
+  const saveIndikator = async (klasterId: number, indikatorId: number) => {
+    if (!selectedBundle) return;
+
+    setSavingIndikator(indikatorId);
+    try {
+      // Find the indikator in the current state
+      const klaster = selectedBundle.klaster.find(k => k.id === klasterId);
+      const indikator = klaster?.indikator.find(i => i.id === indikatorId);
+      
+      if (!indikator) {
+        throw new Error('Indikator tidak ditemukan');
+      }
+
+      // Validate indikator data
+      if (!indikator.nama_indikator.trim()) {
+        throw new Error('Nama indikator harus diisi');
+      }
+
+      if (!indikator.definisi_operasional.trim()) {
+        throw new Error('Definisi operasional harus diisi');
+      }
+
+      let realIndikatorId = indikatorId;
+
+      // If this is a new indikator (using timestamp as temp ID), create it first
+      if (indikatorId > 1000000) {
+        // Ensure we have a bundle ID
+        if (!selectedBundle.id) {
+          throw new Error('Bundle harus disimpan terlebih dahulu sebelum menyimpan indikator');
+        }
+
+        // Find the real klaster ID
+        let realKlasterId = klasterId;
+        if (klasterId > 1000000) {
+          throw new Error('Klaster harus disimpan terlebih dahulu sebelum menyimpan indikator');
+        }
+
+        console.log('Creating new indikator:', indikator.nama_indikator);
+        
+        const indikatorData: IndikatorInsert = {
+          klaster_id: realKlasterId,
+          nama_indikator: indikator.nama_indikator,
+          definisi_operasional: indikator.definisi_operasional,
+          type: indikator.type,
+          urutan: klaster.indikator.indexOf(indikator) + 1
+        };
+
+        const { data: newIndikator, error: indikatorError } = await supabase
+          .from('indikators')
+          .insert(indikatorData)
+          .select()
+          .single();
+
+        if (indikatorError) {
+          console.error('Error creating indikator:', indikatorError);
+          throw new Error(`Gagal membuat indikator: ${indikatorError.message}`);
+        }
+
+        realIndikatorId = newIndikator.id;
+
+        // Update the local state with the real ID
+        setSelectedBundle(prev => ({
+          ...prev!,
+          klaster: prev!.klaster.map(k => 
+            k.id === klasterId 
+              ? {
+                  ...k, 
+                  indikator: k.indikator.map(i => 
+                    i.id === indikatorId ? { ...i, id: realIndikatorId } : i
+                  )
+                }
+              : k
+          )
+        }));
+      } else {
+        // Update existing indikator
+        console.log('Updating existing indikator:', indikator.nama_indikator);
+        const { error: updateError } = await supabase
+          .from('indikators')
+          .update({
+            nama_indikator: indikator.nama_indikator,
+            definisi_operasional: indikator.definisi_operasional,
+            urutan: klaster.indikator.indexOf(indikator) + 1
+          })
+          .eq('id', realIndikatorId);
+
+        if (updateError) {
+          console.error('Error updating indikator:', updateError);
+          throw new Error(`Gagal mengupdate indikator: ${updateError.message}`);
+        }
+      }
+
+      // Save indikator details based on type
+      if (indikator.type === 'scoring') {
+        console.log('Saving scoring details for indikator:', indikator.nama_indikator);
+        console.log('Scoring data to save:', indikator.skor);
+        
+        const scoringData = {
+          skor_0: indikator.skor[0] || '',
+          skor_4: indikator.skor[4] || '',
+          skor_7: indikator.skor[7] || '',
+          skor_10: indikator.skor[10] || ''
+        };
+
+        console.log('Scoring data to upsert:', scoringData);
+
+        const { error: scoringError } = await supabase
+          .from('scoring_indikators')
+          .upsert({
+            indikator_id: realIndikatorId,
+            ...scoringData
+          }, {
+            onConflict: 'indikator_id'
+          });
+
+        if (scoringError) {
+          console.error('Error saving scoring details:', scoringError);
+          throw new Error(`Gagal menyimpan detail scoring: ${scoringError.message}`);
+        }
+      } else {
+        console.log('Saving target achievement details for indikator:', indikator.nama_indikator);
+        
+        const targetData = {
+          target_percentage: indikator.target_info.target_percentage,
+          total_sasaran: indikator.target_info.total_sasaran,
+          satuan: indikator.target_info.satuan,
+          periodicity: indikator.target_info.periodicity
+        };
+
+        const { error: targetError } = await supabase
+          .from('target_achievement_indikators')
+          .upsert({
+            indikator_id: realIndikatorId,
+            ...targetData
+          }, {
+            onConflict: 'indikator_id'
+          });
+
+        if (targetError) {
+          console.error('Error saving target achievement details:', targetError);
+          throw new Error(`Gagal menyimpan detail target: ${targetError.message}`);
+        }
+      }
+
+      toast({
+        title: "Berhasil!",
+        description: `Indikator "${indikator.nama_indikator}" telah disimpan`,
+      });
+
+    } catch (error: any) {
+      console.error('Error saving indikator:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyimpan indikator",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingIndikator(null);
+    }
   };
 
   const saveBundle = async () => {
@@ -697,6 +860,9 @@ const BundleBuilder = () => {
   };
 
   const renderIndikatorForm = (klaster: KlasterLocal, indikator: IndikatorLocal) => {
+    const isNewIndikator = indikator.id > 1000000;
+    const isSavingThis = savingIndikator === indikator.id;
+    
     return (
       <div key={indikator.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
         <div className="flex items-start justify-between mb-3">
@@ -785,14 +951,43 @@ const BundleBuilder = () => {
               </RadioGroup>
             </div>
           </div>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            onClick={() => deleteIndikator(klaster.id, indikator.id)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <div className="flex space-x-2 ml-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => saveIndikator(klaster.id, indikator.id)}
+              disabled={isSavingThis || (!selectedBundle?.id && isNewIndikator)}
+              className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+            >
+              {isSavingThis ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1" />
+                  Simpan
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => deleteIndikator(klaster.id, indikator.id)}
+              disabled={isSavingThis}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
+        
+        {(!selectedBundle?.id && isNewIndikator) && (
+          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+            <AlertCircle className="w-3 h-3 inline mr-1" />
+            Bundle harus disimpan terlebih dahulu sebelum menyimpan indikator individual
+          </div>
+        )}
         
         <Separator className="my-3" />
         
