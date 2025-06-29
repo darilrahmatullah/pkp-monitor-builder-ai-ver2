@@ -168,10 +168,10 @@ const BundleBuilder = () => {
                 definisi_operasional: i.definisi_operasional,
                 type: 'scoring' as const,
                 skor: {
-                  0: scoringData?.skor_0 || 'Tidak memenuhi kriteria',
-                  4: scoringData?.skor_4 || 'Memenuhi sebagian kecil kriteria',
-                  7: scoringData?.skor_7 || 'Memenuhi sebagian besar kriteria',
-                  10: scoringData?.skor_10 || 'Memenuhi seluruh kriteria'
+                  0: scoringData?.skor_0 || '',
+                  4: scoringData?.skor_4 || '',
+                  7: scoringData?.skor_7 || '',
+                  10: scoringData?.skor_10 || ''
                 }
               };
             } else {
@@ -248,10 +248,10 @@ const BundleBuilder = () => {
         definisi_operasional: 'Definisi operasional indikator',
         type: 'scoring',
         skor: {
-          0: 'Tidak memenuhi kriteria',
-          4: 'Memenuhi sebagian kecil kriteria',
-          7: 'Memenuhi sebagian besar kriteria',  
-          10: 'Memenuhi seluruh kriteria'
+          0: '',
+          4: '',
+          7: '',
+          10: ''
         }
       };
     } else {
@@ -350,38 +350,41 @@ const BundleBuilder = () => {
     }));
   };
 
-  // Fixed updateSkor function to properly update scoring descriptions
+  // Fixed updateSkor function with proper state management
   const updateSkor = (klasterId: number, indikatorId: number, skorKey: string, value: string) => {
     if (!selectedBundle) return;
     
-    console.log('Updating skor:', { klasterId, indikatorId, skorKey, value }); // Debug log
+    console.log('Updating skor:', { klasterId, indikatorId, skorKey, value });
     
     setSelectedBundle(prev => {
+      if (!prev) return prev;
+      
       const newBundle = {
-        ...prev!,
-        klaster: prev!.klaster.map(k => 
-          k.id === klasterId 
-            ? {
-                ...k, 
-                indikator: k.indikator.map(i => {
-                  if (i.id === indikatorId && i.type === 'scoring') {
-                    const updatedIndikator = {
-                      ...i,
-                      skor: { 
-                        ...i.skor, 
-                        [skorKey]: value 
-                      }
-                    };
-                    console.log('Updated indikator:', updatedIndikator); // Debug log
-                    return updatedIndikator;
-                  }
-                  return i;
-                })
-              }
-            : k
-        )
+        ...prev,
+        klaster: prev.klaster.map(k => {
+          if (k.id !== klasterId) return k;
+          
+          return {
+            ...k,
+            indikator: k.indikator.map(i => {
+              if (i.id !== indikatorId || i.type !== 'scoring') return i;
+              
+              const updatedIndikator = {
+                ...i,
+                skor: {
+                  ...i.skor,
+                  [skorKey]: value
+                }
+              };
+              
+              console.log('Updated indikator skor:', updatedIndikator);
+              return updatedIndikator;
+            })
+          };
+        })
       };
-      console.log('New bundle state:', newBundle); // Debug log
+      
+      console.log('New bundle state after skor update:', newBundle);
       return newBundle;
     });
   };
@@ -541,7 +544,7 @@ const BundleBuilder = () => {
             // Save indikator details
             if (indikator.type === 'scoring') {
               console.log('Creating scoring details for indikator:', indikator.nama_indikator);
-              console.log('Scoring data to save:', indikator.skor); // Debug log
+              console.log('Scoring data to save:', indikator.skor);
               
               const scoringData: ScoringIndikatorInsert = {
                 indikator_id: indikatorId,
@@ -551,7 +554,7 @@ const BundleBuilder = () => {
                 skor_10: indikator.skor[10] || ''
               };
 
-              console.log('Scoring data to insert:', scoringData); // Debug log
+              console.log('Scoring data to insert:', scoringData);
 
               const { error: scoringError } = await supabase
                 .from('scoring_indikators')
@@ -601,7 +604,7 @@ const BundleBuilder = () => {
             // Update indikator details
             if (indikator.type === 'scoring') {
               console.log('Updating scoring details for indikator:', indikator.nama_indikator);
-              console.log('Scoring data to update:', indikator.skor); // Debug log
+              console.log('Scoring data to update:', indikator.skor);
               
               const { error: scoringError } = await supabase
                 .from('scoring_indikators')
@@ -732,10 +735,10 @@ const BundleBuilder = () => {
                       definisi_operasional: indikator.definisi_operasional,
                       type: 'scoring',
                       skor: {
-                        0: 'Tidak memenuhi kriteria',
-                        4: 'Memenuhi sebagian kecil kriteria',
-                        7: 'Memenuhi sebagian besar kriteria',
-                        10: 'Memenuhi seluruh kriteria'
+                        0: '',
+                        4: '',
+                        7: '',
+                        10: ''
                       }
                     };
                     setSelectedBundle(prev => ({
@@ -807,7 +810,7 @@ const BundleBuilder = () => {
                 <Textarea
                   value={(indikator as ScoringIndikator).skor[key] || ''}
                   onChange={(e) => {
-                    console.log(`Updating ${label} with value:`, e.target.value); // Debug log
+                    console.log(`Updating ${label} with value:`, e.target.value);
                     updateSkor(klaster.id, indikator.id, key, e.target.value);
                   }}
                   placeholder={`Deskripsi untuk ${label.toLowerCase()}...`}
