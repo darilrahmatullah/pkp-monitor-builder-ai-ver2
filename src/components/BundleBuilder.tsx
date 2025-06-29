@@ -343,24 +343,40 @@ const BundleBuilder = () => {
     }));
   };
 
+  // Fixed updateSkor function to properly update scoring descriptions
   const updateSkor = (klasterId: number, indikatorId: number, skorKey: string, value: string) => {
     if (!selectedBundle) return;
     
-    setSelectedBundle(prev => ({
-      ...prev!,
-      klaster: prev!.klaster.map(k => 
-        k.id === klasterId 
-          ? {
-              ...k, 
-              indikator: k.indikator.map(i => 
-                i.id === indikatorId && i.type === 'scoring'
-                  ? { ...i, skor: { ...i.skor, [skorKey]: value } }
-                  : i
-              )
-            }
-          : k
-      )
-    }));
+    console.log('Updating skor:', { klasterId, indikatorId, skorKey, value }); // Debug log
+    
+    setSelectedBundle(prev => {
+      const newBundle = {
+        ...prev!,
+        klaster: prev!.klaster.map(k => 
+          k.id === klasterId 
+            ? {
+                ...k, 
+                indikator: k.indikator.map(i => {
+                  if (i.id === indikatorId && i.type === 'scoring') {
+                    const updatedIndikator = {
+                      ...i,
+                      skor: { 
+                        ...i.skor, 
+                        [skorKey]: value 
+                      }
+                    };
+                    console.log('Updated indikator:', updatedIndikator); // Debug log
+                    return updatedIndikator;
+                  }
+                  return i;
+                })
+              }
+            : k
+        )
+      };
+      console.log('New bundle state:', newBundle); // Debug log
+      return newBundle;
+    });
   };
 
   const saveBundle = async () => {
@@ -518,14 +534,17 @@ const BundleBuilder = () => {
             // Save indikator details
             if (indikator.type === 'scoring') {
               console.log('Creating scoring details for indikator:', indikator.nama_indikator);
+              console.log('Scoring data to save:', indikator.skor); // Debug log
               
               const scoringData: ScoringIndikatorInsert = {
                 indikator_id: indikatorId,
-                skor_0: indikator.skor[0],
-                skor_4: indikator.skor[4],
-                skor_7: indikator.skor[7],
-                skor_10: indikator.skor[10]
+                skor_0: indikator.skor[0] || '',
+                skor_4: indikator.skor[4] || '',
+                skor_7: indikator.skor[7] || '',
+                skor_10: indikator.skor[10] || ''
               };
+
+              console.log('Scoring data to insert:', scoringData); // Debug log
 
               const { error: scoringError } = await supabase
                 .from('scoring_indikators')
@@ -574,13 +593,16 @@ const BundleBuilder = () => {
 
             // Update indikator details
             if (indikator.type === 'scoring') {
+              console.log('Updating scoring details for indikator:', indikator.nama_indikator);
+              console.log('Scoring data to update:', indikator.skor); // Debug log
+              
               const { error: scoringError } = await supabase
                 .from('scoring_indikators')
                 .update({
-                  skor_0: indikator.skor[0],
-                  skor_4: indikator.skor[4],
-                  skor_7: indikator.skor[7],
-                  skor_10: indikator.skor[10]
+                  skor_0: indikator.skor[0] || '',
+                  skor_4: indikator.skor[4] || '',
+                  skor_7: indikator.skor[7] || '',
+                  skor_10: indikator.skor[10] || ''
                 })
                 .eq('indikator_id', indikatorId);
 
@@ -776,8 +798,11 @@ const BundleBuilder = () => {
               <div key={key} className={`p-2 rounded border ${color}`}>
                 <Label className="text-xs font-medium text-gray-700">{label}</Label>
                 <Textarea
-                  value={(indikator as ScoringIndikator).skor[key]}
-                  onChange={(e) => updateSkor(klaster.id, indikator.id, key, e.target.value)}
+                  value={(indikator as ScoringIndikator).skor[key] || ''}
+                  onChange={(e) => {
+                    console.log(`Updating ${label} with value:`, e.target.value); // Debug log
+                    updateSkor(klaster.id, indikator.id, key, e.target.value);
+                  }}
                   placeholder={`Deskripsi untuk ${label.toLowerCase()}...`}
                   className="mt-1 text-xs bg-white"
                   rows={2}
